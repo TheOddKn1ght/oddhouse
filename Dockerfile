@@ -4,7 +4,7 @@ COPY package.json bun.lock .npmrc bunfig.toml ./
 RUN bun install --frozen-lockfile --ignore-scripts
 
 FROM dependencies AS build
-ARG ORIGIN=http://localhost:8091
+ARG ORIGIN=http://localhost:9991
 ENV ORIGIN=$ORIGIN
 COPY src ./src
 COPY tracker ./tracker

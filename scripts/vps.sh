@@ -12,7 +12,7 @@ NGINX_SITE=/etc/nginx/conf.d/oddhouse.conf
 RUNTIME_DIRECTORY=''
 REPO_URL='' BRANCH=main DOMAIN='' EMAIL='' CURRENT_SHA='' DATA_PATH=/data/oddhouse.sqlite
 PREVIOUS_SHA='' CANDIDATE_SHA='' SNAPSHOT='' ORIGINAL_DATA_PATH=''
-ADMIN=admin APP_PORT=8091 AGREE_TOS=0 SKIP_ADMIN=0
+ADMIN=admin APP_PORT=9991 AGREE_TOS=0 SKIP_ADMIN=0
 
 log() { printf '[oddhouse] %s\n' "$*"; }
 die() { printf '[oddhouse] %s\n' "$*" >&2; exit 1; }
@@ -21,7 +21,7 @@ usage() {
 Usage:
   sudo bash scripts/vps.sh install --repo URL --domain stats.example.com \
     --email you@example.com --agree-tos [--branch main] [--admin admin] \
-    [--app-port 8091] [--skip-admin]
+    [--app-port 9991] [--skip-admin]
 
 Then, from anywhere on the VPS:
   sudo oddhouse update                  Deploy new commits from the configured branch
@@ -37,7 +37,7 @@ Then, from anywhere on the VPS:
 
 Requires Ubuntu 22.04/24.04/26.04/26.10 or Debian 12/13, systemd, and a domain
 pointing at this VPS. The host nginx serves ports 80/443; Docker binds only
-127.0.0.1:8091 (or --app-port). Existing nginx sites and SSH stay unchanged.
+127.0.0.1:9991 (or --app-port). Existing nginx sites and SSH stay unchanged.
 Private repos require a root-owned read-only SSH deploy key and known_hosts.
 --agree-tos accepts the Let's Encrypt subscriber agreement for your domain.
 No full OS upgrade, firewall replacement, or reboot is performed.

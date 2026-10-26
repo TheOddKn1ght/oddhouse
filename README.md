@@ -48,8 +48,8 @@ The smoke check runs the production output with a disposable database. To run a
 production build directly on localhost, set its canonical origin when building:
 
 ```sh
-ORIGIN=http://localhost:8091 bun run --bun build
-HOST=127.0.0.1 PORT=8091 bun start
+ORIGIN=http://localhost:9991 bun run --bun build
+HOST=127.0.0.1 PORT=9991 bun start
 ```
 
 SvelteKit 3's Bun adapter uses a build-time canonical origin. Rebuild when the
@@ -79,7 +79,7 @@ It installs Docker/Compose, nginx and Certbot if needed, issues TLS using the
 webroot challenge, and creates only Oddhouse's nginx configuration. Existing
 nginx sites remain in place. Ports 80/443 must be reachable for HTTP/TLS and
 certificate renewal; the installer does not change your firewall. Docker binds
-only `127.0.0.1:8091`; use `--app-port` to choose another unoccupied local port.
+only `127.0.0.1:9991`; use `--app-port` to choose another unoccupied local port.
 The Docker build receives the public origin from `--domain`.
 
 ```sh
@@ -127,7 +127,7 @@ printf '%s' "$password" | docker compose exec -T app bun scripts/admin.ts create
 unset password
 ```
 
-Open `http://localhost:8091`. To enable daily backups locally, add
+Open `http://localhost:9991`. To enable daily backups locally, add
 `--profile backup` before `up`. For another public origin, set `ORIGIN` and rebuild.
 The VPS script uses `compose.vps.yaml` to select revision-tagged images and bound
 container logs. Neither Compose file runs an nginx container.

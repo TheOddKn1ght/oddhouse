@@ -1,0 +1,11 @@
+[install]
+# 14 days, in seconds. Existing lockfile entries remain pinned.
+minimumReleaseAge = 1209600
+
+[fmt]
+printWidth = 100
+singleQuote = true
+tabWidth = 2
+useTabs = false
+semi = true
+ignorePatterns = ["drizzle/meta/**", "drizzle/*.sql"]

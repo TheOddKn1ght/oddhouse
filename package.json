@@ -1,0 +1,41 @@
+{
+  "name": "oddhouse",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run build:tracker --development && bun --bun vite dev",
+    "build": "bun run build:tracker && bun --bun vite build",
+    "preview": "bun --bun vite preview",
+    "prepare": "svelte-kit sync",
+    "check": "bun run format:check && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "start": "bun ./build",
+    "test": "bun test",
+    "admin": "bun scripts/admin.ts",
+    "test:smoke": "bun scripts/smoke.ts",
+    "format": "bun fmt",
+    "format:check": "bun fmt --check",
+    "db:generate": "bun --bun drizzle-kit generate",
+    "db:migrate": "bun scripts/migrate.ts",
+    "build:tracker": "bun scripts/build-tracker.ts"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-bun": "^1.0.0",
+    "@sveltejs/kit": "^3.0.0",
+    "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "@types/bun": "^1.4.4",
+    "drizzle-kit": "^0.31.11",
+    "svelte": "^5.57.1",
+    "svelte-check": "^4.6.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.0"
+  },
+  "imports": {
+    "#lib": "./src/lib/index.js",
+    "#lib/*": "./src/lib/*"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.4"
+  }
+}

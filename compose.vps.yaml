@@ -1,0 +1,21 @@
+# Managed by scripts/vps.sh, on top of compose.yaml. nginx runs on the host.
+services:
+  app:
+    image: oddhouse:${ODDHOUSE_REVISION:?Set the deployed revision}
+    environment:
+      PROTOCOL_HEADER: x-forwarded-proto
+      ADDRESS_HEADER: x-forwarded-for
+      XFF_DEPTH: '1'
+      DATABASE_PATH: ${DATABASE_PATH:-/data/oddhouse.sqlite}
+    ports: !override
+      - '127.0.0.1:${APP_PORT:-8091}:3000'
+    logging: &bounded-logs
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+  backup:
+    image: oddhouse:${ODDHOUSE_REVISION:?Set the deployed revision}
+    environment:
+      DATABASE_PATH: ${DATABASE_PATH:-/data/oddhouse.sqlite}
+    logging: *bounded-logs

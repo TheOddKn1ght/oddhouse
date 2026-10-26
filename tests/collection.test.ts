@@ -48,3 +48,24 @@ test('collection rejects malformed kinds, paths and oversized paths', () => {
     expect(normalizeHit(value, 'https://blog.example')).toBeNull();
   }
 });
+
+test('session tokens must be random UUIDs and visitor-supplied dimensions are ignored', () => {
+  const value = {
+    kind: 'pageview',
+    path: '/',
+    session: crypto.randomUUID(),
+    country: 'FAKE',
+    browser: 'FAKE',
+  };
+  expect(normalizeHit(value, 'https://blog.example')).toEqual({
+    kind: 'pageview',
+    path: '/',
+    session: value.session,
+    title: '',
+    referrer: '',
+    event: '',
+  });
+  for (const session of ['', 'known-user', 'f'.repeat(1000), 123, null]) {
+    expect(normalizeHit({ ...value, session }, 'https://blog.example')).toBeNull();
+  }
+});

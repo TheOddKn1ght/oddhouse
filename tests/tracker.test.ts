@@ -9,10 +9,22 @@ describe.each([
   ['development', readable],
   ['minified', minified],
 ])('tracker (%s)', (_name, source) => {
-  function tracker(options: { auto?: string; spa?: string; dnt?: string; gpc?: boolean } = {}) {
+  function tracker(
+    options: {
+      auto?: string;
+      spa?: string;
+      dnt?: string;
+      gpc?: boolean;
+      storage?: Map<string, string>;
+      now?: number;
+      storageBlocked?: boolean;
+    } = {},
+  ) {
+    let now = options.now || 10000000;
+    const storage = options.storage || new Map<string, string>();
     const hits: Record<string, string>[] = [];
     const timers: (() => void)[] = [];
-    const listeners: Record<string, () => void> = {};
+    const listeners: Record<string, (event?: any) => void> = {};
     const location = { pathname: '/' };
     const window: any = {};
     const history = { pushState: () => 'push', replaceState: () => 'replace' };
@@ -26,6 +38,22 @@ describe.each([
         referrer: '',
       },
       navigator: { doNotTrack: options.dnt, globalPrivacyControl: options.gpc },
+      crypto,
+      Date: class extends Date {
+        static now() {
+          return now;
+        }
+      },
+      localStorage: {
+        getItem: (key: string) => {
+          if (options.storageBlocked) throw new Error('blocked');
+          return storage.get(key) || null;
+        },
+        setItem: (key: string, value: string) => {
+          if (options.storageBlocked) throw new Error('blocked');
+          storage.set(key, value);
+        },
+      },
       window,
       location,
       history,
@@ -35,10 +63,12 @@ describe.each([
         return Promise.resolve();
       },
       setTimeout: (fn: () => void) => timers.push(fn),
-      addEventListener: (name: string, fn: () => void) => (listeners[name] = fn),
+      addEventListener: (name: string, fn: (event?: any) => void) => (listeners[name] = fn),
     });
     return {
       hits,
+      storage,
+      advance: (ms: number) => (now += ms),
       window,
       location,
       history,
@@ -88,6 +118,34 @@ describe.each([
       const t = tracker(options);
       expect(t.hits).toHaveLength(0);
       expect(t.window.oddhouse).toBeUndefined();
+      expect(t.storage.size).toBe(0);
     }
+  });
+  test('restored static documents recheck pageviews using the same session', () => {
+    const t = tracker({ spa: 'false' });
+    t.listeners.pageshow({ persisted: false });
+    expect(t.hits).toHaveLength(1);
+    t.listeners.pageshow({ persisted: true });
+    expect(t.hits).toHaveLength(2);
+    expect(t.hits[1].session).toBe(t.hits[0].session);
+  });
+  test('blocked storage still tracks and malformed stored tokens are replaced', () => {
+    const blocked = tracker({ storageBlocked: true });
+    blocked.window.oddhouse.pageview('/second');
+    expect(blocked.hits).toHaveLength(2);
+    expect(blocked.hits[1].session).toBe(blocked.hits[0].session);
+    const storage = new Map([
+      ['oddhouse:site-one:session', JSON.stringify({ id: '-'.repeat(36), lastSeen: 10000000 })],
+    ]);
+    const recovered = tracker({ storage });
+    expect(recovered.hits[0].session).toMatch(/^[a-f0-9]{8}-[a-f0-9]{4}-4/);
+  });
+  test('session survives reload and rotates after 30 minutes of inactivity', () => {
+    const first = tracker();
+    const reloaded = tracker({ storage: first.storage });
+    expect(reloaded.hits[0].session).toBe(first.hits[0].session);
+    reloaded.advance(30 * 60 * 1000);
+    reloaded.window.oddhouse.pageview('/later');
+    expect(reloaded.hits.at(-1)?.session).not.toBe(first.hits[0].session);
   });
 });

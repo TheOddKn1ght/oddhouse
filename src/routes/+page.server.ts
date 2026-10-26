@@ -66,10 +66,44 @@ export const load: PageServerLoad = ({ url }) => {
     .orderBy(desc(count()), hits.event)
     .limit(20)
     .all();
+  const countryNames = new Intl.DisplayNames(['en'], { type: 'region' });
+  const countries = db
+    .select({ country: hits.country, count: count() })
+    .from(hits)
+    .where(views)
+    .groupBy(hits.country)
+    .orderBy(desc(count()), hits.country)
+    .limit(20)
+    .all()
+    .map((row) => ({
+      ...row,
+      name: row.country ? countryNames.of(row.country) || row.country : 'Unknown',
+    }));
+  const browserExpression = sql<string>`coalesce(nullif(${hits.browser}, ''), 'Unknown')`;
+  const browsers = db
+    .select({ browser: browserExpression, count: count() })
+    .from(hits)
+    .where(views)
+    .groupBy(browserExpression)
+    .orderBy(desc(count()), browserExpression)
+    .limit(20)
+    .all();
   const snippet = selected
     ? `<script defer src="${url.origin}/tracker.js" data-site="${selected.id}"></script>`
     : '';
-  return { sites: allSites, selected, days, totals, series, pages, referrers, events, snippet };
+  return {
+    sites: allSites,
+    selected,
+    days,
+    totals,
+    series,
+    pages,
+    referrers,
+    events,
+    countries,
+    browsers,
+    snippet,
+  };
 };
 
 export const actions: Actions = {

@@ -30,3 +30,5 @@ backups/
 
 # Generated from tracker/tracker.ts by build:tracker.
 /static/tracker.js
+
+/geoip/

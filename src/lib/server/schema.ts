@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { check, index, integer, primaryKey, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 
 export const admins = sqliteTable('admins', {
   username: text('username').primaryKey().notNull(),
@@ -31,6 +31,8 @@ export const hits = sqliteTable(
     referrer: text('referrer').notNull().default(''),
     event: text('event').notNull().default(''),
     created_at: integer('created_at').notNull(),
+    country: text('country').notNull().default(''),
+    browser: text('browser').notNull().default(''),
   },
   (table) => [
     index('hits_site_time').on(table.site_id, table.created_at),
@@ -38,3 +40,27 @@ export const hits = sqliteTable(
   ],
 );
 export type Site = typeof sites.$inferSelect;
+
+// Anonymous visit IDs are hashes of a site-scoped token; these rows are transient.
+export const visits = sqliteTable(
+  'visits',
+  {
+    id: text('id').primaryKey().notNull(),
+    site_id: text('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    last_seen: integer('last_seen').notNull(),
+  },
+  (table) => [index('visits_last_seen').on(table.last_seen)],
+);
+export const visitPages = sqliteTable(
+  'visit_pages',
+  {
+    visit_id: text('visit_id')
+      .notNull()
+      .references(() => visits.id, { onDelete: 'cascade' }),
+    path: text('path').notNull(),
+    last_counted: integer('last_counted').notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.visit_id, table.path] })],
+);

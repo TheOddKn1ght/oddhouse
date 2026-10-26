@@ -9,3 +9,5 @@ backups
 !.env.example
 tests
 .vscode
+
+geoip

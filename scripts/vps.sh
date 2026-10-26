@@ -243,7 +243,7 @@ build_release() {
   staged=$(mktemp -d "$CONFIG/runtime.XXXXXX")
   if ! sync_runtime_configuration "$sha" "$staged"; then rm -rf "$staged"; return 1; fi
   if ! RUNTIME_DIRECTORY="$staged" compose "$sha" config --quiet; then rm -rf "$staged"; return 1; fi
-  if ! docker build --pull --build-arg "ORIGIN=https://$DOMAIN" --tag "oddhouse:$sha" "$ROOT/releases/$sha"; then rm -rf "$staged"; return 1; fi
+  if ! docker build --pull --build-arg "ORIGIN=https://$DOMAIN" --build-arg "GEOIP_RELEASE=$(date -u +%Y-%m)" --tag "oddhouse:$sha" "$ROOT/releases/$sha"; then rm -rf "$staged"; return 1; fi
   # Keep the prior runtime usable when a candidate fails. Promote this complete
   # directory atomically only after validation and build checks pass.
   rm -f "$CONFIG/runtime.next"

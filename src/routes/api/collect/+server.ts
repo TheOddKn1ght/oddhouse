@@ -1,5 +1,7 @@
+import { browserName, countryForAddress } from '#lib/server/dimensions.js';
+import { recordHit } from '#lib/server/record-hit.js';
 import { and, eq } from 'drizzle-orm';
-import { sites, hits } from '#lib/server/schema.js';
+import { sites } from '#lib/server/schema.js';
 import type { RequestHandler } from './$types';
 import { database } from '#lib/server/database.js';
 import { normalizeHit } from '#lib/server/collection.js';
@@ -31,7 +33,7 @@ export const OPTIONS: RequestHandler = ({ request, url }) => {
     headers: site ? headers(site.origin) : {},
   });
 };
-export const POST: RequestHandler = async ({ request, url }) => {
+export const POST: RequestHandler = async ({ request, url, getClientAddress }) => {
   const site = siteFor(request, url);
   if (!site) return new Response(null, { status: 403 });
   const cors = headers(site.origin);
@@ -59,10 +61,10 @@ export const POST: RequestHandler = async ({ request, url }) => {
     body += decoder.decode();
     const hit = normalizeHit(JSON.parse(body), site.origin);
     if (!hit) return new Response(null, { status: 400, headers: cors });
-    database()
-      .insert(hits)
-      .values({ site_id: site.id, ...hit, created_at: Date.now() })
-      .run();
+    recordHit(database(), site.id, hit, {
+      country: countryForAddress(getClientAddress()),
+      browser: browserName(request.headers.get('user-agent') || ''),
+    });
     return new Response(null, { status: 204, headers: cors });
   } catch {
     return new Response(null, { status: 400, headers: cors });

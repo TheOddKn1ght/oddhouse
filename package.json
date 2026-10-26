@@ -18,7 +18,8 @@
     "format:check": "bun fmt --check",
     "db:generate": "bun --bun drizzle-kit generate",
     "db:migrate": "bun scripts/migrate.ts",
-    "build:tracker": "bun scripts/build-tracker.ts"
+    "build:tracker": "bun scripts/build-tracker.ts",
+    "geoip:update": "bun scripts/update-geoip.ts"
   },
   "devDependencies": {
     "@sveltejs/adapter-bun": "^1.0.0",
@@ -36,6 +37,7 @@
     "#lib/*": "./src/lib/*"
   },
   "dependencies": {
-    "drizzle-orm": "^0.45.4"
+    "drizzle-orm": "^0.45.4",
+    "maxmind": "^5.0.7"
   }
 }

@@ -17,14 +17,20 @@ const env = {
   ORIGIN: origin,
   HOST: '127.0.0.1',
   PORT: String(port),
-  ADDRESS_HEADER: '',
+  ADDRESS_HEADER: 'x-forwarded-for',
   PROTOCOL_HEADER: 'x-forwarded-proto',
 };
 const rawFetch = globalThis.fetch;
 const fetch = (url: string | URL, init: RequestInit = {}) =>
   rawFetch(url, {
     ...init,
-    headers: { Accept: 'text/html', 'X-Forwarded-Proto': 'http', ...init.headers },
+    headers: {
+      Accept: 'text/html',
+      'X-Forwarded-Proto': 'http',
+      'X-Forwarded-For': '8.8.8.8',
+      'User-Agent': 'Mozilla/5.0 Chrome/130.0 Safari/537.36',
+      ...init.headers,
+    },
   });
 const password = crypto.randomUUID();
 let server: ReturnType<typeof Bun.spawn> | undefined;
@@ -92,11 +98,12 @@ try {
   });
   assert.equal(preflight.status, 204);
   assert.equal(preflight.headers.get('access-control-allow-origin'), 'https://blog.example');
+  const visitorSession = crypto.randomUUID();
   const collect = async (body: unknown, source = 'https://blog.example', extra = {}) =>
     fetch(endpoint, {
       method: 'POST',
       headers: { Origin: source, 'Content-Type': 'application/json', ...extra },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...(body as object), session: visitorSession }),
     });
   assert.equal(
     (
@@ -127,15 +134,27 @@ try {
     413,
   );
   assert.equal((await collect({ kind: 'bad', path: '/' })).status, 400);
+  // Browser back/reload and concurrent retries must not create extra views.
+  await Promise.all(Array.from({ length: 2 }, () => collect({ kind: 'pageview', path: '/post' })));
   db = new Database(path, { readonly: true });
   assert.deepEqual(db.query('SELECT kind,path,referrer,event FROM hits ORDER BY id').all(), [
     { kind: 'pageview', path: '/post', referrer: 'search.example', event: '' },
     { kind: 'event', path: '/post', referrer: '', event: 'download' },
   ]);
+  const dimensionRows = db.query('SELECT country,browser FROM hits').all() as {
+    country: string;
+    browser: string;
+  }[];
+  assert(dimensionRows.every((row) => row.browser === 'Chrome'));
+  if (await Bun.file(process.env.GEOIP_DATABASE || 'geoip/country.mmdb').exists()) {
+    assert(dimensionRows.every((row) => row.country === 'US'));
+  }
   const dashboard = await fetch(`${origin}/?site=${id}`, { headers: { Cookie: cookie } });
   assert.equal(dashboard.status, 200);
   const html = await dashboard.text();
   assert(html.includes('Smoke blog') && html.includes('/post') && html.includes('download'));
+  assert(html.includes('Countries') && html.includes('Browsers') && html.includes('Chrome'));
+  assert(html.includes('https://db-ip.com'));
   const logout = await fetch(`${origin}/?/logout`, {
     method: 'POST',
     redirect: 'manual',
@@ -148,7 +167,7 @@ try {
     303,
   );
   console.log(
-    'Production smoke passed: login, CSRF, sites, CORS, collection, privacy, dashboard and logout.',
+    'Production smoke passed: login, CSRF, sites, CORS, collection, privacy, country/browser dimensions, repeat filtering, dashboard and logout.',
   );
 } finally {
   db?.close();

@@ -3,12 +3,15 @@
 Self-hosted web analytics with a private admin panel, built with SvelteKit,
 Bun, Drizzle ORM and SQLite.
 
-- Multiple sites, pageviews, daily charts, top pages, referrers and custom events.
+- Multiple sites, pageviews, daily charts, top pages, referrers, countries, browsers and custom events.
 - Static-site and SPA tracking, with automatic History API navigation tracking.
-- No tracking cookies or visitor identifiers; query strings and fragments are excluded.
+- No tracking cookies; a temporary, site-scoped session filters repeat pageviews.
+- Query strings and fragments are excluded; raw visitor IPs are not stored.
 - Respects Do Not Track and Global Privacy Control.
 
-Counts represent pageviews and events, not unique visitors. All administrators
+A page counts once per browser session within five minutes of its last counted
+view. Later returns count again; custom events count on every call. Counts are
+not unique visitor totals. All administrators
 share access to all sites. Admin login uses a session cookie.
 
 ## Development
@@ -25,6 +28,7 @@ bun run dev
 
 Open the address printed by the development server. The default database is
 `data/oddhouse.sqlite`; override it with `DATABASE_PATH`.
+Run `bun run geoip:update` to download the country database before starting the app.
 
 ```bash
 bun run format          # Format source files
@@ -56,6 +60,14 @@ Use safe virtual paths for hash routers or paths containing sensitive values.
 window.oddhouse?.pageview('/settings');
 window.oddhouse?.event('download.pdf');
 ```
+
+An anonymous token is stored in localStorage for the registered site and rotates
+after 30 minutes without tracking activity. Server-side repeat filtering survives
+reloads, back/forward navigation and tabs sharing that token. Only a hash of the
+token is kept on the server; expired filtering state is removed on collection.
+If storage is blocked, the token lasts for that page only. DNT/GPC disable both
+collection and session storage. Page paths and titles can contain sensitive data;
+use safe virtual paths when necessary.
 
 The API is available after the script loads. Use automatic or manual pageviews
 to avoid duplicates. Sites with a Content Security Policy must allow the
@@ -103,3 +115,14 @@ For local Docker, run `docker compose up --build -d` and open
 `docker compose exec -T app bun scripts/admin.ts create admin`.
 Set `ORIGIN` before building for another public URL; rebuild when it changes.
 Run `bash vps.sh --help` for installer options and management commands.
+
+Countries are estimated locally from the request IP using
+[DB-IP Country Lite](https://db-ip.com/db/download/ip-to-country-lite)
+([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)). Browser families
+come from the request's User-Agent; disguised browsers may be classified as
+Chrome or Unknown. Country lookup does not call an external visitor API. Docker
+images include the country database; VPS builds refresh it monthly. For local
+updates, run `bun run geoip:update` and restart the app. `GEOIP_DATABASE` can
+point to another compatible country MMDB file. Missing/unknown country data and
+historical hits appear as Unknown. When using another reverse proxy, configure
+its client IP forwarding correctly; the native nginx setup already does this.

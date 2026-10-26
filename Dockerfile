@@ -9,7 +9,10 @@ ENV ORIGIN=$ORIGIN
 COPY src ./src
 COPY tracker ./tracker
 COPY static ./static
-COPY scripts/build-tracker.ts ./scripts/build-tracker.ts
+COPY scripts/build-tracker.ts scripts/update-geoip.ts ./scripts/
+# Refresh country data when a new release image is built.
+ARG GEOIP_RELEASE=latest
+RUN bun scripts/update-geoip.ts
 COPY vite.config.ts tsconfig.json ./
 RUN bun run --bun build
 
@@ -23,6 +26,7 @@ WORKDIR /app
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 DATABASE_PATH=/data/oddhouse.sqlite
 RUN mkdir -p /data /backups && chown bun:bun /data /backups
 COPY --from=build --chown=bun:bun /app/build ./build
+COPY --from=build --chown=bun:bun /app/geoip ./geoip
 COPY --from=production-dependencies --chown=bun:bun /app/node_modules ./node_modules
 COPY --chown=bun:bun package.json ./
 COPY --chown=bun:bun drizzle ./drizzle

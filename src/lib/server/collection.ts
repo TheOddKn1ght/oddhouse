@@ -4,6 +4,7 @@ export type Hit = {
   title: string;
   referrer: string;
   event: string;
+  session?: string;
 };
 
 export function normalizeHit(value: unknown, siteOrigin: string): Hit | null {
@@ -15,6 +16,12 @@ export function normalizeHit(value: unknown, siteOrigin: string): Hit | null {
     !input.path.startsWith('/') ||
     input.path.startsWith('//') ||
     input.path.length > 2048
+  )
+    return null;
+  if (
+    input.session !== undefined &&
+    (typeof input.session !== 'string' ||
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(input.session))
   )
     return null;
   // Queries never enter storage, including those sent through the manual API.
@@ -35,6 +42,7 @@ export function normalizeHit(value: unknown, siteOrigin: string): Hit | null {
   )
     return null;
   return {
+    ...(input.session ? { session: input.session as string } : {}),
     kind: input.kind,
     path,
     title: typeof input.title === 'string' ? input.title.slice(0, 200) : '',

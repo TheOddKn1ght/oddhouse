@@ -38,7 +38,7 @@
       <select
         name="days"
         id="days"
-        value={data.days}
+        value={String(data.days)}
         onchange={(event) => event.currentTarget.form?.requestSubmit()}
       >
         <option value="1">Today</option><option value="7">Last 7 days</option><option value="30"
@@ -157,12 +157,39 @@
           >
         </table>
       </section>
+      <section class="panel">
+        <h2>Countries</h2>
+        <table>
+          <thead><tr><th>Country</th><th>Views</th></tr></thead><tbody>
+            {#each data.countries as country}<tr
+                ><td class="break">{country.name}</td><td>{format(country.count)}</td></tr
+              >
+            {:else}<tr><td colspan="2" class="empty">No pageviews in this period.</td></tr>{/each}
+          </tbody>
+        </table>
+        <p class="muted small">
+          <a href="https://db-ip.com" target="_blank" rel="noreferrer">IP Geolocation by DB-IP</a>
+        </p>
+      </section>
+      <section class="panel">
+        <h2>Browsers</h2>
+        <table>
+          <thead><tr><th>Browser</th><th>Views</th></tr></thead><tbody>
+            {#each data.browsers as browser}<tr
+                ><td class="break">{browser.browser || 'Unknown'}</td><td
+                  >{format(browser.count)}</td
+                ></tr
+              >
+            {:else}<tr><td colspan="2" class="empty">No pageviews in this period.</td></tr>{/each}
+          </tbody>
+        </table>
+      </section>
     </div>
     <section class="panel integration">
       <h2>Install tracker</h2>
       <p class="muted">
-        Add this to your shared HTML template. Page loads and SPA path changes are counted
-        automatically.
+        Add this to your shared HTML template. Page loads and SPA path changes are tracked
+        automatically. Repeat visits to the same page within five minutes are counted once.
       </p>
       <pre><code>{data.snippet}</code></pre>
       <button class="quiet" onclick={copySnippet}>{copied ? 'Copied' : 'Copy snippet'}</button>
@@ -178,5 +205,5 @@
       <p class="muted">Add a site above, then copy its tracking script into your website.</p>
     </div>
   {/if}
-  <footer>oddhouse · Tracker uses no cookies or visitor identifiers</footer>
+  <footer>oddhouse · Five-minute repeat filtering · No tracking cookies</footer>
 </main>

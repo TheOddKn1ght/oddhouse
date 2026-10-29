@@ -88,6 +88,24 @@ export const load: PageServerLoad = ({ url }) => {
     .orderBy(desc(count()), browserExpression)
     .limit(20)
     .all();
+  function dimensionCounts(column: typeof hits.device | typeof hits.os | typeof hits.language) {
+    const label = sql<string>`coalesce(nullif(${column}, ''), 'Unknown')`;
+    return db
+      .select({ label, count: count() })
+      .from(hits)
+      .where(views)
+      .groupBy(label)
+      .orderBy(desc(count()), label)
+      .limit(20)
+      .all();
+  }
+  const devices = dimensionCounts(hits.device);
+  const operatingSystems = dimensionCounts(hits.os);
+  const languageNames = new Intl.DisplayNames(['en'], { type: 'language' });
+  const languages = dimensionCounts(hits.language).map((row) => ({
+    ...row,
+    label: row.label === 'Unknown' ? 'Unknown' : languageNames.of(row.label) || row.label,
+  }));
   const snippet = selected
     ? `<script defer src="${url.origin}/tracker.js" data-site="${selected.id}"></script>`
     : '';
@@ -102,6 +120,9 @@ export const load: PageServerLoad = ({ url }) => {
     events,
     countries,
     browsers,
+    devices,
+    operatingSystems,
+    languages,
     snippet,
   };
 };

@@ -1,4 +1,11 @@
-import { browserName, countryForAddress } from '#lib/server/dimensions.js';
+import {
+  browserName,
+  countryForAddress,
+  deviceName,
+  osName,
+  preferredLanguage,
+  isBot,
+} from '#lib/server/dimensions.js';
 import { recordHit } from '#lib/server/record-hit.js';
 import { and, eq } from 'drizzle-orm';
 import { sites } from '#lib/server/schema.js';
@@ -39,6 +46,8 @@ export const POST: RequestHandler = async ({ request, url, getClientAddress }) =
   const cors = headers(site.origin);
   if (request.headers.get('sec-gpc') === '1' || request.headers.get('dnt') === '1')
     return new Response(null, { status: 204, headers: cors });
+  const userAgent = request.headers.get('user-agent') || '';
+  if (isBot(userAgent)) return new Response(null, { status: 204, headers: cors });
   if (request.headers.get('content-type')?.split(';')[0].trim() !== 'application/json')
     return new Response(null, { status: 415, headers: cors });
   // Limit actual streamed bytes, including requests without Content-Length.
@@ -63,7 +72,10 @@ export const POST: RequestHandler = async ({ request, url, getClientAddress }) =
     if (!hit) return new Response(null, { status: 400, headers: cors });
     recordHit(database(), site.id, hit, {
       country: countryForAddress(getClientAddress()),
-      browser: browserName(request.headers.get('user-agent') || ''),
+      browser: browserName(userAgent),
+      device: deviceName(userAgent),
+      os: osName(userAgent),
+      language: preferredLanguage(hit.language, request.headers.get('accept-language') || ''),
     });
     return new Response(null, { status: 204, headers: cors });
   } catch {

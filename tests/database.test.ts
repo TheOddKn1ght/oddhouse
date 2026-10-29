@@ -23,7 +23,7 @@ test('fresh schema migrates once and enforces foreign keys and hit kinds', () =>
       ),
     ).toThrow();
     const rows = db.$client.query('SELECT * FROM __drizzle_migrations').all();
-    expect(rows).toHaveLength(2);
+    expect(rows).toHaveLength(3);
   } finally {
     db.$client.close();
   }
@@ -50,8 +50,13 @@ test('adopting the original database preserves data, sessions and cascade behavi
       try {
         expect(db.select().from(admins).get()?.password_hash).toBe('existing-hash');
         expect(db.select().from(sessions).get()?.token_hash).toBe('session-hash');
-        expect(db.select().from(hits).get()?.path).toBe('/existing');
-        expect(db.$client.query('SELECT * FROM __drizzle_migrations').all()).toHaveLength(2);
+        expect(db.select().from(hits).get()).toMatchObject({
+          path: '/existing',
+          device: '',
+          os: '',
+          language: '',
+        });
+        expect(db.$client.query('SELECT * FROM __drizzle_migrations').all()).toHaveLength(3);
       } finally {
         db.$client.close();
       }

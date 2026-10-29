@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "drizzle-orm": "^0.45.4",
+    "isbot": "^5.2.2",
     "maxmind": "^5.0.7"
   }
 }

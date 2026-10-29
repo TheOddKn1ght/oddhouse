@@ -15,6 +15,13 @@
       "when": 1793039100490,
       "tag": "0001_country_browser_visits",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793278950994,
+      "tag": "0002_device_os_language",
+      "breakpoints": true
     }
   ]
 }

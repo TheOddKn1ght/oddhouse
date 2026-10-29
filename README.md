@@ -1,6 +1,6 @@
 # Oddhouse
 
-Self-hosted web analytics with SvelteKit, Bun, and SQLite. Tracks pageviews, referrers, countries, and custom events without tracking cookies or storing raw IPs. Respects DNT and GPC.
+Self-hosted web analytics with SvelteKit, Bun, and SQLite. Tracks pageviews, referrers, countries, browsers, devices, operating systems, languages, and custom events without tracking cookies or storing raw IPs. Respects DNT and GPC.
 
 Requires Bun 1.4.4+.
 
@@ -14,6 +14,8 @@ bun run dev
 ```
 
 Sign in, register a site, and add its generated tracking script. Counts are pageviews, not unique visitors.
+
+Device and OS are estimated from User-Agent; language is the preferred base language. Known crawlers, headless agents and WebDriver automation are excluded going forward. Historical hits remain unchanged and show Unknown for new fields. Detection is approximate; disguised clients can evade it.
 
 For an Ubuntu/Debian VPS with a domain and ports 80/443 open:
 

@@ -28,7 +28,9 @@ const fetch = (url: string | URL, init: RequestInit = {}) =>
       Accept: 'text/html',
       'X-Forwarded-Proto': 'http',
       'X-Forwarded-For': '8.8.8.8',
-      'User-Agent': 'Mozilla/5.0 Chrome/130.0 Safari/537.36',
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36',
+      'Accept-Language': 'en-US,en;q=0.9',
       ...init.headers,
     },
   });
@@ -136,16 +138,37 @@ try {
   assert.equal((await collect({ kind: 'bad', path: '/' })).status, 400);
   // Browser back/reload and concurrent retries must not create extra views.
   await Promise.all(Array.from({ length: 2 }, () => collect({ kind: 'pageview', path: '/post' })));
+  for (const kind of ['pageview', 'event']) {
+    assert.equal(
+      (
+        await collect({ kind, path: '/bot', event: 'download' }, 'https://blog.example', {
+          'User-Agent': 'Googlebot/2.1 (+http://www.google.com/bot.html)',
+        })
+      ).status,
+      204,
+    );
+  }
   db = new Database(path, { readonly: true });
   assert.deepEqual(db.query('SELECT kind,path,referrer,event FROM hits ORDER BY id').all(), [
     { kind: 'pageview', path: '/post', referrer: 'search.example', event: '' },
     { kind: 'event', path: '/post', referrer: '', event: 'download' },
   ]);
-  const dimensionRows = db.query('SELECT country,browser FROM hits').all() as {
+  const dimensionRows = db.query('SELECT country,browser,device,os,language FROM hits').all() as {
     country: string;
     browser: string;
+    device: string;
+    os: string;
+    language: string;
   }[];
-  assert(dimensionRows.every((row) => row.browser === 'Chrome'));
+  assert(
+    dimensionRows.every(
+      (row) =>
+        row.browser === 'Chrome' &&
+        row.device === 'Desktop' &&
+        row.os === 'Windows' &&
+        row.language === 'en',
+    ),
+  );
   if (await Bun.file(process.env.GEOIP_DATABASE || 'geoip/country.mmdb').exists()) {
     assert(dimensionRows.every((row) => row.country === 'US'));
   }
@@ -154,6 +177,10 @@ try {
   const html = await dashboard.text();
   assert(html.includes('Smoke blog') && html.includes('/post') && html.includes('download'));
   assert(html.includes('Countries') && html.includes('Browsers') && html.includes('Chrome'));
+  assert(
+    html.includes('Devices') && html.includes('Operating systems') && html.includes('Languages'),
+  );
+  assert(html.includes('Desktop') && html.includes('Windows') && html.includes('English'));
   assert(html.includes('https://db-ip.com'));
   const logout = await fetch(`${origin}/?/logout`, {
     method: 'POST',

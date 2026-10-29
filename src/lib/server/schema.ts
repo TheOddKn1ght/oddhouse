@@ -33,6 +33,9 @@ export const hits = sqliteTable(
     created_at: integer('created_at').notNull(),
     country: text('country').notNull().default(''),
     browser: text('browser').notNull().default(''),
+    device: text('device').notNull().default(''),
+    os: text('os').notNull().default(''),
+    language: text('language').notNull().default(''),
   },
   (table) => [
     index('hits_site_time').on(table.site_id, table.created_at),

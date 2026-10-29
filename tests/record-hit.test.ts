@@ -13,7 +13,13 @@ const first: Hit = {
   title: '',
   session: token,
 };
-const dimensions = { country: 'US', browser: 'Firefox' };
+const dimensions = {
+  country: 'US',
+  browser: 'Firefox',
+  device: 'Desktop',
+  os: 'Linux',
+  language: 'en',
+};
 function setup() {
   const db = openDatabase(':memory:');
   for (const id of ['one', 'two'])

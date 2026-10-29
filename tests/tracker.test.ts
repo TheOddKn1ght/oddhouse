@@ -18,6 +18,8 @@ describe.each([
       storage?: Map<string, string>;
       now?: number;
       storageBlocked?: boolean;
+      webdriver?: boolean;
+      language?: string;
     } = {},
   ) {
     let now = options.now || 10000000;
@@ -37,7 +39,12 @@ describe.each([
         title: 'Page',
         referrer: '',
       },
-      navigator: { doNotTrack: options.dnt, globalPrivacyControl: options.gpc },
+      navigator: {
+        doNotTrack: options.dnt,
+        globalPrivacyControl: options.gpc,
+        webdriver: options.webdriver,
+        language: options.language || 'en-US',
+      },
       crypto,
       Date: class extends Date {
         static now() {
@@ -78,6 +85,14 @@ describe.each([
       },
     };
   }
+  test('sends preferred language and skips WebDriver without storing a session', () => {
+    const normal = tracker({ language: 'fr-CA' });
+    expect(normal.hits[0].language).toBe('fr-CA');
+    const automated = tracker({ webdriver: true });
+    expect(automated.hits).toHaveLength(0);
+    expect(automated.storage.size).toBe(0);
+    expect(automated.window.oddhouse).toBeUndefined();
+  });
   test('static site counts once and manual custom events use the current path', () => {
     const t = tracker({ spa: 'false' });
     expect(t.hits).toHaveLength(1);

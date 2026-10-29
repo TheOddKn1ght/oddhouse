@@ -184,6 +184,21 @@
           </tbody>
         </table>
       </section>
+      {#each [{ title: 'Devices', label: 'Device', rows: data.devices }, { title: 'Operating systems', label: 'OS', rows: data.operatingSystems }, { title: 'Languages', label: 'Language', rows: data.languages }] as breakdown}
+        <section class="panel">
+          <h2>{breakdown.title}</h2>
+          <table>
+            <thead><tr><th>{breakdown.label}</th><th>Views</th></tr></thead>
+            <tbody
+              >{#each breakdown.rows as row}<tr
+                  ><td class="break">{row.label}</td><td>{format(row.count)}</td></tr
+                >
+              {:else}<tr><td colspan="2" class="empty">No pageviews in this period.</td></tr
+                >{/each}</tbody
+            >
+          </table>
+        </section>
+      {/each}
     </div>
     <section class="panel integration">
       <h2>Install tracker</h2>
@@ -205,5 +220,7 @@
       <p class="muted">Add a site above, then copy its tracking script into your website.</p>
     </div>
   {/if}
-  <footer>oddhouse · Five-minute repeat filtering · No tracking cookies</footer>
+  <footer>
+    oddhouse · Five-minute repeat filtering · Known bots excluded · No tracking cookies
+  </footer>
 </main>

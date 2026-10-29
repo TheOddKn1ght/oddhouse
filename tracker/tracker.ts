@@ -17,6 +17,7 @@ declare global {
   'use strict';
   const script = document.currentScript as HTMLScriptElement | null;
   if (!script || !script.dataset.site || window.oddhouse) return;
+  if (navigator.webdriver === true) return;
   if (navigator.doNotTrack === '1' || navigator.globalPrivacyControl === true) return;
   const endpoint = new URL('/api/collect', script.src);
   endpoint.searchParams.set('site', script.dataset.site);
@@ -65,6 +66,7 @@ declare global {
         keepalive: true,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          language: navigator.language,
           session: sessionId(),
           kind,
           event,

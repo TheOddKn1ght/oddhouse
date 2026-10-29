@@ -1,3 +1,5 @@
+import { normalizeLanguage } from './dimensions';
+
 export type Hit = {
   kind: 'pageview' | 'event';
   path: string;
@@ -5,6 +7,7 @@ export type Hit = {
   referrer: string;
   event: string;
   session?: string;
+  language?: string;
 };
 
 export function normalizeHit(value: unknown, siteOrigin: string): Hit | null {
@@ -41,7 +44,9 @@ export function normalizeHit(value: unknown, siteOrigin: string): Hit | null {
     (typeof input.event !== 'string' || !/^[a-zA-Z0-9_.:-]{1,100}$/.test(input.event))
   )
     return null;
+  const language = normalizeLanguage(input.language);
   return {
+    ...(language ? { language } : {}),
     ...(input.session ? { session: input.session as string } : {}),
     kind: input.kind,
     path,

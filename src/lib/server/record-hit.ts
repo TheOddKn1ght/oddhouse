@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { and, eq, lte } from 'drizzle-orm';
 import type { openDatabase } from './database';
+import type { HitDimensions } from './dimensions';
 import type { Hit } from './collection';
 import { hits, visits, visitPages } from './schema';
 
@@ -11,7 +12,7 @@ export function recordHit(
   db: ReturnType<typeof openDatabase>,
   siteId: string,
   hit: Hit,
-  dimensions: { country: string; browser: string },
+  dimensions: HitDimensions,
   now = Date.now(),
 ) {
   const { session, ...values } = hit;

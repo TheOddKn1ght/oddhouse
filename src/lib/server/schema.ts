@@ -36,6 +36,10 @@ export const hits = sqliteTable(
     device: text('device').notNull().default(''),
     os: text('os').notNull().default(''),
     language: text('language').notNull().default(''),
+    utm_source: text('utm_source').notNull().default(''),
+    utm_medium: text('utm_medium').notNull().default(''),
+    utm_campaign: text('utm_campaign').notNull().default(''),
+    target: text('target').notNull().default(''),
   },
   (table) => [
     index('hits_site_time').on(table.site_id, table.created_at),
@@ -53,6 +57,7 @@ export const visits = sqliteTable(
       .notNull()
       .references(() => sites.id, { onDelete: 'cascade' }),
     last_seen: integer('last_seen').notNull(),
+    journey_id: text('journey_id'),
   },
   (table) => [index('visits_last_seen').on(table.last_seen)],
 );
@@ -66,4 +71,40 @@ export const visitPages = sqliteTable(
     last_counted: integer('last_counted').notNull(),
   },
   (table) => [primaryKey({ columns: [table.visit_id, table.path] })],
+);
+
+// Durable visit summaries have random IDs, not reusable browser identifiers.
+export const journeys = sqliteTable(
+  'journeys',
+  {
+    id: text('id').primaryKey().notNull(),
+    site_id: text('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    started_at: integer('started_at').notNull(),
+    last_seen: integer('last_seen').notNull(),
+    entry_path: text('entry_path').notNull(),
+    exit_path: text('exit_path').notNull(),
+    utm_source: text('utm_source').notNull().default(''),
+    utm_medium: text('utm_medium').notNull().default(''),
+    utm_campaign: text('utm_campaign').notNull().default(''),
+  },
+  (table) => [
+    index('journeys_site_start').on(table.site_id, table.started_at),
+    index('journeys_site_seen').on(table.site_id, table.last_seen),
+  ],
+);
+export const pageActivity = sqliteTable(
+  'page_activity',
+  {
+    id: text('id').primaryKey().notNull(),
+    site_id: text('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    path: text('path').notNull(),
+    active_ms: integer('active_ms').notNull().default(0),
+    max_scroll: integer('max_scroll').notNull().default(0),
+    created_at: integer('created_at').notNull(),
+  },
+  (table) => [index('activity_site_time').on(table.site_id, table.created_at)],
 );

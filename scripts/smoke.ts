@@ -181,6 +181,16 @@ try {
     html.includes('Devices') && html.includes('Operating systems') && html.includes('Languages'),
   );
   assert(html.includes('Desktop') && html.includes('Windows') && html.includes('English'));
+  for (const title of [
+    'Campaigns',
+    'Outbound clicks',
+    'Downloads',
+    'Engagement',
+    'Entry pages',
+    'Exit pages',
+    'Live activity',
+  ])
+    assert(html.includes(title));
   assert(html.includes('https://db-ip.com'));
   const logout = await fetch(`${origin}/?/logout`, {
     method: 'POST',

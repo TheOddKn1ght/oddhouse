@@ -1,3 +1,4 @@
+import { activityReports } from '#lib/server/activity-reports.js';
 import { and, count, desc, eq, gte, sql } from 'drizzle-orm';
 import { hits, sites as sitesTable } from '#lib/server/schema.js';
 import { fail, redirect } from '@sveltejs/kit';
@@ -110,6 +111,7 @@ export const load: PageServerLoad = ({ url }) => {
     ? `<script defer src="${url.origin}/tracker.js" data-site="${selected.id}"></script>`
     : '';
   return {
+    ...activityReports(db, selected?.id || '', since),
     sites: allSites,
     selected,
     days,

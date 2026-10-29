@@ -1,10 +1,40 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { PageProps } from './$types';
   let { data, form }: PageProps = $props();
   let adding = $state(false);
   let copied = $state(false);
   const format = (value: number) => value.toLocaleString();
   let peak = $derived(Math.max(1, ...data.series.map((item) => item.count)));
+  let live = $state<typeof data.live | null>(null);
+  let visibleLive = $derived(live?.siteId === data.selected?.id ? live : data.live);
+  const duration = (ms: number) => `${Math.floor(ms / 60000)}m ${Math.floor(ms / 1000) % 60}s`;
+  onMount(() => {
+    let controller: AbortController | undefined;
+    const refresh = async () => {
+      if (document.visibilityState === 'hidden' || !data.selected || controller) return;
+      controller = new AbortController();
+      try {
+        const response = await fetch(`/api/live?site=${encodeURIComponent(data.selected.id)}`, {
+          cache: 'no-store',
+          redirect: 'error',
+          signal: controller.signal,
+        });
+        if (response.ok) live = await response.json();
+      } catch {
+        /* Keep the last successful snapshot. */
+      } finally {
+        controller = undefined;
+      }
+    };
+    const timer = setInterval(refresh, 15000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      clearInterval(timer);
+      controller?.abort();
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  });
   async function copySnippet() {
     try {
       await navigator.clipboard.writeText(data.snippet);
@@ -121,6 +151,21 @@
         </table>
       </details>
     </section>
+    <section class="panel">
+      <h2>Live activity</h2>
+      <p>
+        {visibleLive.active} active sessions in the last 60 seconds. Refreshes every 15 seconds.
+      </p>
+      <table>
+        <thead><tr><th>Recent pageviews (last 5 minutes, UTC)</th><th>Time</th></tr></thead><tbody>
+          {#each visibleLive.recent as hit}<tr
+              ><td>{hit.path}</td><td>{new Date(hit.created_at).toISOString().slice(11, 19)}</td
+              ></tr
+            >
+          {:else}<tr><td colspan="2" class="empty">No recent pageviews.</td></tr>{/each}
+        </tbody>
+      </table>
+    </section>
     <div class="tables">
       <section class="panel">
         <h2>Pages</h2>
@@ -199,6 +244,42 @@
           </table>
         </section>
       {/each}
+      <section class="panel">
+        <h2>Campaigns</h2>
+        <table>
+          <thead><tr><th>Source / medium / campaign</th><th>Views</th></tr></thead><tbody>
+            {#each data.campaigns as campaign}<tr
+                ><td
+                  >{campaign.source || '—'} / {campaign.medium || '—'} / {campaign.campaign ||
+                    '—'}</td
+                ><td>{format(campaign.count)}</td></tr
+              >
+            {:else}<tr><td colspan="2" class="empty">No campaign pageviews.</td></tr>{/each}
+          </tbody>
+        </table>
+      </section>
+      {#each [{ title: 'Outbound clicks', rows: data.outboundLinks.map( (row) => ({ label: row.target, count: row.count }) ) }, { title: 'Downloads', rows: data.downloads.map( (row) => ({ label: row.target, count: row.count }) ) }, { title: 'Entry pages', rows: data.entries.map( (row) => ({ label: row.path, count: row.count }) ) }, { title: 'Exit pages (idle for 30+ minutes)', rows: data.exits.map( (row) => ({ label: row.path, count: row.count }) ) }] as breakdown}
+        <section class="panel">
+          <h2>{breakdown.title}</h2>
+          <table>
+            <thead><tr><th>Page / target</th><th>Count</th></tr></thead><tbody>
+              {#each breakdown.rows as row}<tr><td>{row.label}</td><td>{format(row.count)}</td></tr>
+              {:else}<tr><td colspan="2" class="empty">No data in this period.</td></tr>{/each}
+            </tbody>
+          </table>
+        </section>
+      {/each}
+      <section class="panel">
+        <h2>Engagement</h2>
+        <table>
+          <thead><tr><th>Page</th><th>Active time</th><th>Deepest scroll</th></tr></thead><tbody>
+            {#each data.engagement as row}<tr
+                ><td>{row.path}</td><td>{duration(row.active_ms)}</td><td>{row.max_scroll}%</td></tr
+              >
+            {:else}<tr><td colspan="3" class="empty">No measured engagement.</td></tr>{/each}
+          </tbody>
+        </table>
+      </section>
     </div>
     <section class="panel integration">
       <h2>Install tracker</h2>
@@ -209,8 +290,9 @@
       <pre><code>{data.snippet}</code></pre>
       <button class="quiet" onclick={copySnippet}>{copied ? 'Copied' : 'Copy snippet'}</button>
       <p class="muted small">
-        Custom events: <code>window.oddhouse?.event('signup')</code>. Query strings and fragments
-        are excluded. Do Not Track and Global Privacy Control are respected.
+        Custom events: <code>window.oddhouse?.event('signup')</code>. Only UTM campaign tags are
+        kept from query strings; fragments are excluded. Do Not Track and Global Privacy Control are
+        respected.
       </p>
     </section>
   {:else}

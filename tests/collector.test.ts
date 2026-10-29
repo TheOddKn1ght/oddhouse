@@ -1,3 +1,5 @@
+import { GET as liveGET } from '../src/routes/api/live/+server';
+import { handle } from '../src/hooks.server';
 import { afterAll, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -40,9 +42,17 @@ function collect(body: object, ua = human, language = 'en-US,en;q=0.9') {
   } as any);
 }
 test('bot pageviews and events are acknowledged but create neither hits nor visitor sessions', async () => {
-  for (const kind of ['pageview', 'event']) {
+  for (const kind of ['pageview', 'event', 'engagement']) {
     const response = await collect(
-      { kind, event: 'download', path: '/bot', session: crypto.randomUUID() },
+      {
+        kind,
+        event: 'download',
+        path: '/bot',
+        session: crypto.randomUUID(),
+        page: crypto.randomUUID(),
+        active_ms: 1000,
+        max_scroll: 50,
+      },
       'Googlebot/2.1 (+http://www.google.com/bot.html)',
     );
     expect(response.status).toBe(204);
@@ -115,4 +125,76 @@ test('collector and dashboard preserve dimensions and count only unfiltered page
       { label: 'Unknown', count: 1 },
     ]),
   );
+});
+
+test('live endpoint is private and its snapshot excludes events and duplicate pageviews', async () => {
+  const url = new URL('https://analytics.example/api/live?site=test');
+  await expect(
+    handle({
+      event: { url, cookies: { get: () => undefined } },
+      resolve: () => {
+        throw new Error('unauthorized request reached endpoint');
+      },
+    } as any),
+  ).rejects.toMatchObject({ status: 303, location: '/login' });
+  const response = await liveGET({ url } as any);
+  const snapshot = await response.json();
+  expect(snapshot.siteId).toBe('test');
+  expect(snapshot.active).toBe(1);
+  expect(snapshot.recent).toHaveLength(3);
+  expect(snapshot.recent.every((row: any) => !row.session && !row.journey_id)).toBe(true);
+  expect(
+    (await liveGET({ url: new URL('https://analytics.example/api/live') } as any)).status,
+  ).toBe(400);
+});
+
+test('collector accepts campaign/link metadata and engagement without counting heartbeat requests as hits', async () => {
+  const token = crypto.randomUUID();
+  const page = crypto.randomUUID();
+  expect(
+    (
+      await collect({
+        kind: 'pageview',
+        path: '/landing?private=secret',
+        session: token,
+        page,
+        utm_source: 'newsletter',
+        utm_campaign: 'launch',
+        utm_term: 'private',
+      })
+    ).status,
+  ).toBe(204);
+  expect(
+    (
+      await collect({
+        kind: 'event',
+        event: 'outbound_click',
+        path: '/landing',
+        session: token,
+        target: 'https://outside.example/post?token=secret#fragment',
+      })
+    ).status,
+  ).toBe(204);
+  expect(
+    (
+      await collect({
+        kind: 'engagement',
+        path: '/landing',
+        session: token,
+        page,
+        active_ms: 1000,
+        max_scroll: 75,
+      })
+    ).status,
+  ).toBe(204);
+  const data = (await load!({
+    url: new URL('https://analytics.example/?site=test'),
+  } as any)) as any;
+  expect(data.totals).toEqual({ pageviews: 4, events: 2 });
+  expect(data.campaigns).toEqual([
+    { source: 'newsletter', medium: '', campaign: 'launch', count: 1 },
+  ]);
+  expect(data.outboundLinks).toEqual([{ target: 'https://outside.example/post', count: 1 }]);
+  expect(data.engagement).toEqual([{ path: '/landing', active_ms: 1000, max_scroll: 75 }]);
+  expect(data.entries).toEqual(expect.arrayContaining([{ path: '/landing', count: 1 }]));
 });

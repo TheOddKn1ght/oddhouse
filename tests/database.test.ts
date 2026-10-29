@@ -23,7 +23,7 @@ test('fresh schema migrates once and enforces foreign keys and hit kinds', () =>
       ),
     ).toThrow();
     const rows = db.$client.query('SELECT * FROM __drizzle_migrations').all();
-    expect(rows).toHaveLength(3);
+    expect(rows).toHaveLength(4);
   } finally {
     db.$client.close();
   }
@@ -56,7 +56,7 @@ test('adopting the original database preserves data, sessions and cascade behavi
           os: '',
           language: '',
         });
-        expect(db.$client.query('SELECT * FROM __drizzle_migrations').all()).toHaveLength(3);
+        expect(db.$client.query('SELECT * FROM __drizzle_migrations').all()).toHaveLength(4);
       } finally {
         db.$client.close();
       }

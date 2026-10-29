@@ -22,6 +22,13 @@
       "when": 1793278950994,
       "tag": "0002_device_os_language",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793279456719,
+      "tag": "0003_campaigns_activity",
+      "breakpoints": true
     }
   ]
 }

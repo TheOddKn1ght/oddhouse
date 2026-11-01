@@ -27,6 +27,22 @@ sudo bash vps.sh install \
 
 Manage with `sudo oddhouse update`, `status`, `backup`, or `recover`. Keep backups off-server. Run `bash vps.sh --help` for options.
 
+`bun run build` uses Bun's lower-memory mode and one worker per bundler pool,
+with tracker and application builds run sequentially. Build subprocesses disable
+JIT compilation and promptly release unused allocator pages; the production
+server uses its normal runtime settings. Vite loads the TypeScript config
+directly through Bun. Production builds omit
+source maps and compressed-size reporting. Docker also waits for the app build
+before installing runtime dependencies and downloading GeoIP data, avoiding
+overlapping memory peaks. Dependency downloads use four concurrent requests.
+Monthly GeoIP refreshes do not invalidate the application build cache.
+These defaults target small VPS hosts, including 1 CPU / 1 GB RAM machines;
+available memory still depends on the OS, Docker, and other running services.
+For faster builds on larger hosts, set `ROLLDOWN_WORKER_THREADS` and
+`RAYON_NUM_THREADS` to higher values. Set `BUN_JSC_useJIT=1` to re-enable
+JIT compilation during builds. This Bun engine setting is verified with the
+pinned Bun 1.4.4 runtime and should be rechecked on upgrades.
+
 Country data: [DB-IP Country Lite](https://db-ip.com/db/download/ip-to-country-lite), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 Campaigns keep only `utm_source`, `utm_medium` and `utm_campaign` (100 characters

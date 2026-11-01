@@ -3,5 +3,6 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  build: { sourcemap: false, reportCompressedSize: false },
   plugins: [sveltekit({ adapter: adapter(), paths: { origin: process.env.ORIGIN } })],
 });

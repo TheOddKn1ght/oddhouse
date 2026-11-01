@@ -7,9 +7,6 @@ declare global {
   interface Window {
     oddhouse?: OddhouseTracker;
   }
-  interface Navigator {
-    readonly globalPrivacyControl?: boolean;
-  }
 }
 
 /* Oddhouse: site-scoped, short-lived session storage; no tracking cookies. */
@@ -18,7 +15,6 @@ declare global {
   const script = document.currentScript as HTMLScriptElement | null;
   if (!script || !script.dataset.site || window.oddhouse) return;
   if (navigator.webdriver === true) return;
-  if (navigator.doNotTrack === '1' || navigator.globalPrivacyControl === true) return;
   const endpoint = new URL('/api/collect', script.src);
   endpoint.searchParams.set('site', script.dataset.site);
   const storageKey = `oddhouse:${script.dataset.site}:session`;

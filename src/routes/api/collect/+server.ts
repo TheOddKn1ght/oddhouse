@@ -44,8 +44,6 @@ export const POST: RequestHandler = async ({ request, url, getClientAddress }) =
   const site = siteFor(request, url);
   if (!site) return new Response(null, { status: 403 });
   const cors = headers(site.origin);
-  if (request.headers.get('sec-gpc') === '1' || request.headers.get('dnt') === '1')
-    return new Response(null, { status: 204, headers: cors });
   const userAgent = request.headers.get('user-agent') || '';
   if (isBot(userAgent)) return new Response(null, { status: 204, headers: cors });
   if (request.headers.get('content-type')?.split(';')[0].trim() !== 'application/json')

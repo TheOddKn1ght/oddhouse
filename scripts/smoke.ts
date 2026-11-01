@@ -125,8 +125,9 @@ try {
   );
   assert.equal(
     (
-      await collect({ kind: 'pageview', path: '/ignored' }, 'https://blog.example', {
+      await collect({ kind: 'pageview', path: '/privacy-signals' }, 'https://blog.example', {
         'Sec-GPC': '1',
+        DNT: '1',
       })
     ).status,
     204,
@@ -152,6 +153,7 @@ try {
   assert.deepEqual(db.query('SELECT kind,path,referrer,event FROM hits ORDER BY id').all(), [
     { kind: 'pageview', path: '/post', referrer: 'search.example', event: '' },
     { kind: 'event', path: '/post', referrer: '', event: 'download' },
+    { kind: 'pageview', path: '/privacy-signals', referrer: '', event: '' },
   ]);
   const dimensionRows = db.query('SELECT country,browser,device,os,language FROM hits').all() as {
     country: string;

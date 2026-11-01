@@ -261,12 +261,14 @@ describe.each([
     expect(t.hits[0].path).toBe('/virtual');
     expect(t.listeners.popstate).toBeUndefined();
   });
-  test('DNT and GPC prevent tracker registration and all network requests', () => {
-    for (const options of [{ dnt: '1' }, { gpc: true }]) {
+  test('DNT and GPC do not prevent tracking', () => {
+    for (const options of [{ dnt: '1' }, { gpc: true }, { dnt: '1', gpc: true }]) {
       const t = tracker(options);
-      expect(t.hits).toHaveLength(0);
-      expect(t.window.oddhouse).toBeUndefined();
-      expect(t.storage.size).toBe(0);
+      expect(t.hits).toHaveLength(1);
+      t.window.oddhouse.event('signup');
+      expect(t.hits).toHaveLength(2);
+      expect(t.hits[1].event).toBe('signup');
+      expect(t.storage.size).toBe(1);
     }
   });
   test('restored static documents recheck pageviews using the same session', () => {

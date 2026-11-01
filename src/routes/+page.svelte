@@ -291,8 +291,7 @@
       <button class="quiet" onclick={copySnippet}>{copied ? 'Copied' : 'Copy snippet'}</button>
       <p class="muted small">
         Custom events: <code>window.oddhouse?.event('signup')</code>. Only UTM campaign tags are
-        kept from query strings; fragments are excluded. Do Not Track and Global Privacy Control are
-        respected.
+        kept from query strings; fragments are excluded.
       </p>
     </section>
   {:else}

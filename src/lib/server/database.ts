@@ -10,6 +10,10 @@ export function openDatabase(path: string) {
   const sqlite = new Database(path, { create: true, strict: true });
   try {
     sqlite.exec('PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;');
+    // SQLite's built-in lower() only handles ASCII.
+    sqlite.function('oddhouse_lower', { deterministic: true }, (value: string) =>
+      value.normalize('NFC').toLowerCase(),
+    );
     const db = drizzle(sqlite, { schema });
     // Both the Bun server and admin CLI apply the committed migrations.
     // The initial migration also adopts the pre-Drizzle schema without dropping data.

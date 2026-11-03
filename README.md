@@ -66,3 +66,39 @@ The private live panel refreshes every 15 seconds: active sessions contacted the
 collector within 60 seconds, and recent views cover the last five minutes.
 These features start collecting after the tracker/server update; old data is
 not backfilled. The embed script URL stays unchanged.
+
+Reports use UTC calendar dates. Choose a preset or a custom range of up to 366
+inclusive days. Totals show comparison with the immediately preceding range of
+the same length; today's totals are still partial. Sessions count journeys that
+started during the period, not unique visitors. Historical session totals begin
+with the version that introduced journey collection.
+
+Use **Export CSV** for the selected report's totals, comparison, daily counts,
+and breakdowns (top 20 per category). Exports require login and contain aggregate
+data, without browser session identifiers. Engagement is attributed to the date
+the page opened; later snapshots can update that historical total.
+
+Developer intent and design decisions live in [src/md/README.md](src/md/README.md),
+following [src/md](https://srcmd.org/).
+
+Select **View all** on a core breakdown to search, sort, and page through its
+results. Report links preserve the site and UTC dates. **Export matching CSV**
+includes all rows matching that report's search (up to 10,000; narrow the search
+or dates for larger reports). Search uses literal substrings; country and
+language searches use codes such as `US` and `en`.
+
+**Site settings** lets you rename a site while keeping its embed code, origin,
+and analytics history. The tracker installation panel shows the latest stored
+pageview or event across all dates. Refresh the dashboard after testing your
+tracker installation to update this timestamp.
+
+Click a page path in the overview, live activity, or full Pages report to open
+its **page report**. This shows views, previous-period counts, referrers, events,
+link targets, and engagement for one exact path. Page CSV exports use the same
+scope and top-20 breakdown limit. Engagement averages use tracked page loads,
+including zero-time samples; they do not use repeat-filtered pageview counts.
+
+Single-day site and page reports show 24 hourly UTC buckets, with accessible
+count tables. Longer reports show daily buckets. Single-day CSV exports include
+hourly counts as well as the daily total. Live activity shows its snapshot time
+and reports refresh failures while retaining the last successful data.

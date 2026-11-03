@@ -58,6 +58,10 @@ try {
   }
   assert(ready, 'Built server did not become healthy');
   assert.equal((await fetch(origin, { redirect: 'manual' })).status, 303);
+  assert.equal(
+    (await fetch(`${origin}/api/export?site=missing`, { redirect: 'manual' })).status,
+    303,
+  );
   const tracker = await fetch(`${origin}/tracker.js`);
   assert.equal(tracker.status, 200);
   assert(tracker.headers.get('content-type')?.includes('javascript'));
@@ -194,6 +198,140 @@ try {
   ])
     assert(html.includes(title));
   assert(html.includes('https://db-ip.com'));
+  const utcDay = new Date().toISOString().slice(0, 10);
+  const rangeQuery = `site=${id}&from=${utcDay}&to=${utcDay}`;
+  const exported = await fetch(`${origin}/api/export?${rangeQuery}`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(exported.status, 200);
+  assert(exported.headers.get('content-type')?.includes('text/csv'));
+  assert(exported.headers.get('content-disposition')?.includes('attachment'));
+  assert.equal(exported.headers.get('cache-control'), 'no-store');
+  const csv = await exported.text();
+  assert(csv.includes('"Totals","pageviews","","2"'));
+  assert(csv.includes('"Totals","events","","1"'));
+  assert(csv.includes('"Totals","sessions","","1"'));
+  assert(csv.includes('/post') && !csv.includes('secret') && !csv.includes(visitorSession));
+  assert.equal(
+    (await fetch(`${origin}/api/export?site=${id}&from=bad`, { headers: { Cookie: cookie } }))
+      .status,
+    400,
+  );
+  assert.equal(
+    (await fetch(`${origin}/api/export?site=missing`, { headers: { Cookie: cookie } })).status,
+    404,
+  );
+  const historical = await fetch(`${origin}/?site=${id}&from=2020-01-01&to=2020-01-03`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(historical.status, 200);
+  const historicalHtml = await historical.text();
+  assert(historicalHtml.includes('2020-01-01') && historicalHtml.includes('2020-01-03'));
+  assert(historicalHtml.includes('Sessions started') && historicalHtml.includes('Export CSV'));
+  for (const dimension of [
+    'pages',
+    'referrers',
+    'events',
+    'countries',
+    'browsers',
+    'devices',
+    'os',
+    'languages',
+    'outbound',
+    'downloads',
+  ]) {
+    const reportUrl = `${origin}/reports/${dimension}?${rangeQuery}`;
+    assert.equal((await fetch(reportUrl, { redirect: 'manual' })).status, 303);
+    const response = await fetch(reportUrl, { headers: { Cookie: cookie } });
+    assert.equal(response.status, 200, `${dimension}: ${await response.text()}`);
+  }
+  const detailed = await fetch(`${origin}/reports/pages/export?${rangeQuery}&q=post`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(detailed.status, 200);
+  const detailedCsv = await detailed.text();
+  assert(detailedCsv.includes('"/post","/post","1"') && !detailedCsv.includes('/privacy-signals'));
+  assert.equal(
+    (await fetch(`${origin}/reports/pages/export?${rangeQuery}`, { redirect: 'manual' })).status,
+    303,
+  );
+  assert.equal(
+    (await fetch(`${origin}/reports/constructor?${rangeQuery}`, { headers: { Cookie: cookie } }))
+      .status,
+    404,
+  );
+  const rename = await fetch(`${origin}/?/renameSite&${rangeQuery}`, {
+    method: 'POST',
+    headers: { Cookie: cookie, Origin: origin },
+    body: new URLSearchParams({ id, name: 'Renamed blog' }),
+  });
+  assert.equal(rename.status, 200);
+  const renamedHtml = await rename.text();
+  assert(renamedHtml.includes('Renamed blog') && renamedHtml.includes('Site name saved.'));
+  assert(renamedHtml.includes('Latest stored pageview or event'));
+  assert.equal(
+    db.query<{ origin: string }, [string]>('SELECT origin FROM sites WHERE id = ?').get(id)?.origin,
+    'https://blog.example',
+  );
+  const pageQuery = `${rangeQuery}&path=${encodeURIComponent('/post')}`;
+  assert.equal((await fetch(`${origin}/page?${pageQuery}`, { redirect: 'manual' })).status, 303);
+  const pageResponse = await fetch(`${origin}/page?${pageQuery}`, { headers: { Cookie: cookie } });
+  assert.equal(pageResponse.status, 200);
+  const pageHtml = await pageResponse.text();
+  assert(
+    pageHtml.includes('PAGE REPORT') &&
+      pageHtml.includes('Hourly counts') &&
+      pageHtml.includes('Page engagement'),
+  );
+  const pageExport = await fetch(`${origin}/page/export?${pageQuery}`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(pageExport.status, 200);
+  const pageCsv = await pageExport.text();
+  assert(pageCsv.includes('"Totals","pageviews","1"') && pageCsv.includes('"Totals","events","1"'));
+  assert(pageCsv.includes('"Hourly pageviews"') && !pageCsv.includes('/privacy-signals'));
+  assert.equal(
+    (await fetch(`${origin}/page/export?${pageQuery}`, { redirect: 'manual' })).status,
+    303,
+  );
+  assert.equal(
+    (await fetch(`${origin}/page?${rangeQuery}&path=bad`, { headers: { Cookie: cookie } })).status,
+    400,
+  );
+  const singleDay = await fetch(`${origin}/?${rangeQuery}`, { headers: { Cookie: cookie } });
+  assert((await singleDay.text()).includes('Hourly counts'));
+  const writer = new Database(path);
+  try {
+    const insert = writer.query(
+      "INSERT INTO hits (site_id,kind,path,created_at) VALUES (?,'pageview',?,?)",
+    );
+    writer.transaction(() => {
+      for (let i = 0; i < 10001; i++)
+        insert.run(id, `/bulk-${String(i).padStart(5, '0')}`, Date.now());
+    })();
+  } finally {
+    writer.close();
+  }
+  const paged = await fetch(`${origin}/reports/pages?${rangeQuery}&q=bulk-&sort=label&page=2`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(paged.status, 200);
+  const pagedHtml = await paged.text();
+  assert(pagedHtml.includes('/bulk-00050') && !pagedHtml.includes('/bulk-00049'));
+  const tooLarge = await fetch(`${origin}/reports/pages/export?${rangeQuery}&q=bulk-`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(tooLarge.status, 413);
+  const bounded = await fetch(`${origin}/reports/pages/export?${rangeQuery}&q=bulk-000`, {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(bounded.status, 200);
+  const boundedCsv = await bounded.text();
+  assert(
+    boundedCsv.includes('/bulk-00000') &&
+      boundedCsv.includes('/bulk-00099') &&
+      !boundedCsv.includes('/bulk-00100'),
+  );
   const logout = await fetch(`${origin}/?/logout`, {
     method: 'POST',
     redirect: 'manual',
@@ -206,7 +344,7 @@ try {
     303,
   );
   console.log(
-    'Production smoke passed: login, CSRF, sites, CORS, collection, privacy, country/browser dimensions, repeat filtering, dashboard and logout.',
+    'Production smoke passed: login, CSRF, sites, CORS, collection, privacy, country/browser dimensions, repeat filtering, dashboard, breakdown reports, CSV exports, site renaming, page reports, hourly charts and logout.',
   );
 } finally {
   db?.close();

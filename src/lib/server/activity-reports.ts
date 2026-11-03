@@ -1,6 +1,7 @@
-import { and, count, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, lt, lte, sql } from 'drizzle-orm';
 import type { openDatabase } from './database';
 import { hits, journeys, pageActivity } from './schema';
+import { breakdownRows } from './breakdowns';
 import { SESSION_IDLE_MS } from './record-hit';
 
 type DB = ReturnType<typeof openDatabase>;
@@ -23,12 +24,19 @@ export function liveActivity(db: DB, siteId: string, now = Date.now()) {
     .orderBy(desc(hits.created_at), desc(hits.id))
     .limit(20)
     .all();
-  return { siteId, active, recent };
+  return { siteId, active, recent, updatedAt: now };
 }
-export function activityReports(db: DB, siteId: string, since: number, now = Date.now()) {
+export function activityReports(
+  db: DB,
+  siteId: string,
+  since: number,
+  now = Date.now(),
+  until = Number.MAX_SAFE_INTEGER,
+) {
   const views = and(
     eq(hits.site_id, siteId),
     gte(hits.created_at, since),
+    lt(hits.created_at, until),
     eq(hits.kind, 'pageview'),
   );
   const campaigns = db
@@ -49,28 +57,16 @@ export function activityReports(db: DB, siteId: string, since: number, now = Dat
     .orderBy(desc(count()), hits.utm_source, hits.utm_medium, hits.utm_campaign)
     .limit(20)
     .all();
-  function links(event: string) {
-    return db
-      .select({ target: hits.target, count: count() })
-      .from(hits)
-      .where(
-        and(
-          eq(hits.site_id, siteId),
-          gte(hits.created_at, since),
-          eq(hits.kind, 'event'),
-          eq(hits.event, event),
-          sql`${hits.target} != ''`,
-        ),
-      )
-      .groupBy(hits.target)
-      .orderBy(desc(count()), hits.target)
-      .limit(20)
-      .all();
-  }
   const entries = db
     .select({ path: journeys.entry_path, count: count() })
     .from(journeys)
-    .where(and(eq(journeys.site_id, siteId), gte(journeys.started_at, since)))
+    .where(
+      and(
+        eq(journeys.site_id, siteId),
+        gte(journeys.started_at, since),
+        lt(journeys.started_at, until),
+      ),
+    )
     .groupBy(journeys.entry_path)
     .orderBy(desc(count()), journeys.entry_path)
     .limit(20)
@@ -82,6 +78,7 @@ export function activityReports(db: DB, siteId: string, since: number, now = Dat
       and(
         eq(journeys.site_id, siteId),
         gte(journeys.last_seen, since),
+        lt(journeys.last_seen, until),
         lte(journeys.last_seen, now - SESSION_IDLE_MS),
       ),
     )
@@ -96,15 +93,27 @@ export function activityReports(db: DB, siteId: string, since: number, now = Dat
       max_scroll: sql<number>`max(${pageActivity.max_scroll})`.mapWith(Number),
     })
     .from(pageActivity)
-    .where(and(eq(pageActivity.site_id, siteId), gte(pageActivity.created_at, since)))
+    .where(
+      and(
+        eq(pageActivity.site_id, siteId),
+        gte(pageActivity.created_at, since),
+        lt(pageActivity.created_at, until),
+      ),
+    )
     .groupBy(pageActivity.path)
     .orderBy(desc(sql`sum(${pageActivity.active_ms})`), pageActivity.path)
     .limit(20)
     .all();
   return {
     campaigns,
-    outboundLinks: links('outbound_click'),
-    downloads: links('file_download'),
+    outboundLinks: breakdownRows(db, siteId, { since, until }, 'outbound').map((row) => ({
+      target: row.label,
+      count: row.count,
+    })),
+    downloads: breakdownRows(db, siteId, { since, until }, 'downloads').map((row) => ({
+      target: row.label,
+      count: row.count,
+    })),
     entries,
     exits,
     engagement,

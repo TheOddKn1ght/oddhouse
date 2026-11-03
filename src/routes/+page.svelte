@@ -1,28 +1,54 @@
 <script lang="ts">
+  import ViewChart from '#lib/components/ViewChart.svelte';
+  import { pageReportUrl } from '#lib/report-links.js';
+  import {
+    comparison,
+    formatCount as format,
+    formatDuration as duration,
+  } from '#lib/report-format.js';
   import { onMount } from 'svelte';
   import type { PageProps } from './$types';
   let { data, form }: PageProps = $props();
   let adding = $state(false);
   let copied = $state(false);
-  const format = (value: number) => value.toLocaleString();
-  let peak = $derived(Math.max(1, ...data.series.map((item) => item.count)));
+  let customDates = $state(false);
+  let exportUrl = $derived(
+    `/api/export?${new URLSearchParams({ site: data.selected?.id || '', from: data.period.from, to: data.period.to })}`,
+  );
+  let renameAction = $derived(
+    `?/renameSite&${new URLSearchParams({ site: data.selected?.id || '', from: data.period.from, to: data.period.to })}`,
+  );
+  const reportUrl = (dimension: string) =>
+    `/reports/${dimension}?${new URLSearchParams({ site: data.selected?.id || '', from: data.period.from, to: data.period.to })}`;
+  let liveErrorSite = $state<string | null>(null);
+  let liveErrorAt = $state(0);
+  const pageUrl = (path: string) => pageReportUrl(data.selected?.id || '', path, data.period);
   let live = $state<typeof data.live | null>(null);
-  let visibleLive = $derived(live?.siteId === data.selected?.id ? live : data.live);
-  const duration = (ms: number) => `${Math.floor(ms / 60000)}m ${Math.floor(ms / 1000) % 60}s`;
+  let visibleLive = $derived(
+    live?.siteId === data.selected?.id && live.updatedAt > data.live.updatedAt ? live : data.live,
+  );
   onMount(() => {
     let controller: AbortController | undefined;
     const refresh = async () => {
       if (document.visibilityState === 'hidden' || !data.selected || controller) return;
+      const siteId = data.selected.id;
       controller = new AbortController();
       try {
-        const response = await fetch(`/api/live?site=${encodeURIComponent(data.selected.id)}`, {
+        const response = await fetch(`/api/live?site=${encodeURIComponent(siteId)}`, {
           cache: 'no-store',
           redirect: 'error',
           signal: controller.signal,
         });
-        if (response.ok) live = await response.json();
+        if (response.ok) {
+          live = await response.json();
+          liveErrorSite = null;
+        } else {
+          liveErrorSite = siteId;
+          liveErrorAt = Date.now();
+        }
       } catch {
-        /* Keep the last successful snapshot. */
+        liveErrorSite = siteId;
+        liveErrorAt = Date.now();
       } finally {
         controller = undefined;
       }
@@ -68,19 +94,53 @@
       <select
         name="days"
         id="days"
-        value={String(data.days)}
-        onchange={(event) => event.currentTarget.form?.requestSubmit()}
+        value={data.period.custom || customDates ? 'custom' : String(data.days)}
+        onchange={(event) => {
+          customDates = event.currentTarget.value === 'custom';
+          if (!customDates) {
+            const form = event.currentTarget.form!;
+            for (const name of ['from', 'to']) {
+              const field = form.elements.namedItem(name) as HTMLInputElement | null;
+              if (field) field.disabled = true;
+            }
+            form.requestSubmit();
+          }
+        }}
       >
         <option value="1">Today</option><option value="7">Last 7 days</option><option value="30"
           >Last 30 days</option
-        ><option value="90">Last 90 days</option>
+        ><option value="90">Last 90 days</option><option value="custom">Custom dates</option>
       </select>
-      <button class="quiet">Refresh</button>
+      {#if data.period.custom || customDates}
+        <label class="date-filter"
+          >From (UTC)<input
+            type="date"
+            name="from"
+            value={data.period.from}
+            max={data.period.today}
+            required
+          /></label
+        >
+        <label class="date-filter"
+          >To (UTC)<input
+            type="date"
+            name="to"
+            value={data.period.to}
+            max={data.period.today}
+            required
+          /></label
+        >
+      {/if}
+      <button class="quiet">{data.period.custom || customDates ? 'Apply' : 'Refresh'}</button>
     </form>
+    {#if data.selected}<a class="export-link" href={exportUrl} download>Export CSV</a>{/if}
     <button class="quiet" onclick={() => (adding = !adding)}
       >{adding ? 'Cancel' : '+ Add site'}</button
     >
   </nav>
+  {#if data.period.error}<p class="error" role="alert">
+      {data.period.error} Showing {data.period.from}–{data.period.to}.
+    </p>{/if}
   {#if adding || !data.sites.length || form?.error}
     <section class="panel">
       <h2>Add a site</h2>
@@ -107,79 +167,92 @@
         <h1>{data.selected.name}</h1>
         <p class="muted">{data.selected.origin}</p>
       </div>
-      <span class="period-note"
-        >UTC · {data.days === 1 ? 'Today' : `${data.days} calendar days`}</span
-      >
+      <span class="period-note">UTC · {data.period.from} – {data.period.to}</span>
     </div>
     <section class="metrics" aria-label="Totals">
       <div>
         <p>Pageviews</p>
         <strong>{format(data.totals.pageviews)}</strong>
+        <p class="comparison">
+          {comparison(data.totals.pageviews, data.previous.pageviews)}
+          <span class="muted">vs {format(data.previous.pageviews)}</span>
+        </p>
       </div>
       <div>
-        <p>Custom events</p>
+        <p>Events</p>
         <strong>{format(data.totals.events)}</strong>
+        <p class="comparison">
+          {comparison(data.totals.events, data.previous.events)}
+          <span class="muted">vs {format(data.previous.events)}</span>
+        </p>
+      </div>
+      <div>
+        <p>Sessions started</p>
+        <strong>{format(data.totals.sessions)}</strong>
+        <p class="comparison">
+          {comparison(data.totals.sessions, data.previous.sessions)}
+          <span class="muted">vs {format(data.previous.sessions)}</span>
+        </p>
       </div>
     </section>
-    <section class="panel chart-panel">
-      <h2>Pageviews over time</h2>
-      <div
-        class="chart"
-        role="img"
-        aria-label={`Daily pageviews for the last ${data.days} days. ${data.totals.pageviews} total.`}
-      >
-        {#each data.series as day}
-          <div class="bar-slot" title={`${day.day}: ${format(day.count)} pageviews`}>
-            <div
-              class="bar"
-              style:height={`${(day.count / peak) * 100}%`}
-              class:zero={day.count === 0}
-            ></div>
-          </div>
-        {/each}
-      </div>
-      <div class="chart-labels">
-        <span>{data.series[0]?.day}</span><span>{data.series.at(-1)?.day}</span>
-      </div>
-      <details>
-        <summary>Daily counts</summary>
-        <table>
-          <thead><tr><th>Date (UTC)</th><th>Pageviews</th></tr></thead><tbody
-            >{#each data.series as day}<tr><td>{day.day}</td><td>{format(day.count)}</td></tr
-              >{/each}</tbody
-          >
-        </table>
-      </details>
-    </section>
+    <p class="muted small">
+      Compared with the preceding {data.days} UTC calendar {data.days === 1 ? 'day' : 'days'}. {#if data.period.to === data.period.today}Today
+        is still in progress.
+      {/if}Sessions expire after 30 minutes idle; they are not unique visitors.
+    </p>
+    <ViewChart series={data.chartSeries} granularity={data.granularity} />
     <section class="panel">
-      <h2>Live activity</h2>
+      <h2>Live activity <span class="muted small">· Now, independent of report dates</span></h2>
       <p>
         {visibleLive.active} active sessions in the last 60 seconds. Refreshes every 15 seconds.
       </p>
+      <p class="muted small">
+        Snapshot: {new Date(visibleLive.updatedAt).toISOString().slice(11, 19)} UTC.
+      </p>
+      {#if liveErrorSite === data.selected.id && liveErrorAt > visibleLive.updatedAt}<p
+          class="error"
+          role="status"
+        >
+          Could not refresh live activity. Showing the last successful snapshot.
+        </p>{/if}
       <table>
         <thead><tr><th>Recent pageviews (last 5 minutes, UTC)</th><th>Time</th></tr></thead><tbody>
           {#each visibleLive.recent as hit}<tr
-              ><td>{hit.path}</td><td>{new Date(hit.created_at).toISOString().slice(11, 19)}</td
+              ><td><a href={pageUrl(hit.path)}>{hit.path}</a></td><td
+                >{new Date(hit.created_at).toISOString().slice(11, 19)}</td
               ></tr
             >
           {:else}<tr><td colspan="2" class="empty">No recent pageviews.</td></tr>{/each}
         </tbody>
       </table>
     </section>
+    <p class="muted small">Breakdowns show the top 20 results in each category.</p>
     <div class="tables">
       <section class="panel">
-        <h2>Pages</h2>
+        <div class="panel-heading">
+          <h2>Pages</h2>
+          <a class="small" href={reportUrl('pages')}
+            >View all<span class="sr-only"> pages</span> →</a
+          >
+        </div>
         <table>
           <thead><tr><th>Path</th><th>Views</th></tr></thead><tbody
             >{#each data.pages as page}<tr
-                ><td class="break">{page.path}</td><td>{format(page.count)}</td></tr
+                ><td class="break"><a href={pageUrl(page.path)}>{page.path}</a></td><td
+                  >{format(page.count)}</td
+                ></tr
               >{:else}<tr><td colspan="2" class="empty">No pageviews in this period.</td></tr
               >{/each}</tbody
           >
         </table>
       </section>
       <section class="panel">
-        <h2>Referrers</h2>
+        <div class="panel-heading">
+          <h2>Referrers</h2>
+          <a class="small" href={reportUrl('referrers')}
+            >View all<span class="sr-only"> referrers</span> →</a
+          >
+        </div>
         <table>
           <thead><tr><th>Source</th><th>Views</th></tr></thead><tbody
             >{#each data.referrers as referrer}<tr
@@ -192,7 +265,12 @@
         </table>
       </section>
       <section class="panel">
-        <h2>Events</h2>
+        <div class="panel-heading">
+          <h2>Events</h2>
+          <a class="small" href={reportUrl('events')}
+            >View all<span class="sr-only"> events</span> →</a
+          >
+        </div>
         <table>
           <thead><tr><th>Name</th><th>Count</th></tr></thead><tbody
             >{#each data.events as event}<tr
@@ -203,7 +281,12 @@
         </table>
       </section>
       <section class="panel">
-        <h2>Countries</h2>
+        <div class="panel-heading">
+          <h2>Countries</h2>
+          <a class="small" href={reportUrl('countries')}
+            >View all<span class="sr-only"> countries</span> →</a
+          >
+        </div>
         <table>
           <thead><tr><th>Country</th><th>Views</th></tr></thead><tbody>
             {#each data.countries as country}<tr
@@ -217,7 +300,12 @@
         </p>
       </section>
       <section class="panel">
-        <h2>Browsers</h2>
+        <div class="panel-heading">
+          <h2>Browsers</h2>
+          <a class="small" href={reportUrl('browsers')}
+            >View all<span class="sr-only"> browsers</span> →</a
+          >
+        </div>
         <table>
           <thead><tr><th>Browser</th><th>Views</th></tr></thead><tbody>
             {#each data.browsers as browser}<tr
@@ -229,9 +317,16 @@
           </tbody>
         </table>
       </section>
-      {#each [{ title: 'Devices', label: 'Device', rows: data.devices }, { title: 'Operating systems', label: 'OS', rows: data.operatingSystems }, { title: 'Languages', label: 'Language', rows: data.languages }] as breakdown}
+      {#each [{ key: 'devices', title: 'Devices', label: 'Device', rows: data.devices }, { key: 'os', title: 'Operating systems', label: 'OS', rows: data.operatingSystems }, { key: 'languages', title: 'Languages', label: 'Language', rows: data.languages }] as breakdown}
         <section class="panel">
-          <h2>{breakdown.title}</h2>
+          <div class="panel-heading">
+            <h2>{breakdown.title}</h2>
+            {#if 'key' in breakdown && breakdown.key}<a
+                class="small"
+                href={reportUrl(breakdown.key)}
+                >View all<span class="sr-only"> {breakdown.title.toLowerCase()}</span> →</a
+              >{/if}
+          </div>
           <table>
             <thead><tr><th>{breakdown.label}</th><th>Views</th></tr></thead>
             <tbody
@@ -258,9 +353,16 @@
           </tbody>
         </table>
       </section>
-      {#each [{ title: 'Outbound clicks', rows: data.outboundLinks.map( (row) => ({ label: row.target, count: row.count }) ) }, { title: 'Downloads', rows: data.downloads.map( (row) => ({ label: row.target, count: row.count }) ) }, { title: 'Entry pages', rows: data.entries.map( (row) => ({ label: row.path, count: row.count }) ) }, { title: 'Exit pages (idle for 30+ minutes)', rows: data.exits.map( (row) => ({ label: row.path, count: row.count }) ) }] as breakdown}
+      {#each [{ key: 'outbound', title: 'Outbound clicks', rows: data.outboundLinks.map( (row) => ({ label: row.target, count: row.count }) ) }, { key: 'downloads', title: 'Downloads', rows: data.downloads.map( (row) => ({ label: row.target, count: row.count }) ) }, { title: 'Entry pages', rows: data.entries.map( (row) => ({ label: row.path, count: row.count }) ) }, { title: 'Exit pages (idle for 30+ minutes)', rows: data.exits.map( (row) => ({ label: row.path, count: row.count }) ) }] as breakdown}
         <section class="panel">
-          <h2>{breakdown.title}</h2>
+          <div class="panel-heading">
+            <h2>{breakdown.title}</h2>
+            {#if 'key' in breakdown && breakdown.key}<a
+                class="small"
+                href={reportUrl(breakdown.key)}
+                >View all<span class="sr-only"> {breakdown.title.toLowerCase()}</span> →</a
+              >{/if}
+          </div>
           <table>
             <thead><tr><th>Page / target</th><th>Count</th></tr></thead><tbody>
               {#each breakdown.rows as row}<tr><td>{row.label}</td><td>{format(row.count)}</td></tr>
@@ -281,8 +383,30 @@
         </table>
       </section>
     </div>
+    <details class="panel site-settings" open={!!form?.renameError}>
+      <summary>Site settings</summary>
+      <form method="POST" action={renameAction} class="site-form">
+        <input type="hidden" name="id" value={data.selected.id} />
+        <label
+          >Site name<input name="name" value={data.selected.name} maxlength="100" required /></label
+        >
+        <button>Save name</button>
+      </form>
+      {#if form?.renameError}<p class="error" role="alert">{form.renameError}</p>{/if}
+      <p class="muted small">
+        Renaming preserves this site's tracking script, registered origin, and history.
+      </p>
+    </details>
+    {#if form?.renamed}<p role="status">Site name saved.</p>{/if}
     <section class="panel integration">
       <h2>Install tracker</h2>
+      <p class="collection-status">
+        {#if data.lastHit !== null}Latest stored pageview or event: <time
+            datetime={new Date(data.lastHit).toISOString()}
+            >{new Date(data.lastHit).toISOString().replace('T', ' ').slice(0, 19)} UTC</time
+          >.{:else}No pageviews or events received yet. Add the snippet, open your site in a normal
+          browser, then refresh this dashboard.{/if}
+      </p>
       <p class="muted">
         Add this to your shared HTML template. Page loads and SPA path changes are tracked
         automatically. Repeat visits to the same page within five minutes are counted once.

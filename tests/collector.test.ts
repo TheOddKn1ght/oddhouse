@@ -103,7 +103,7 @@ test('collector and dashboard preserve dimensions and count only unfiltered page
   const data = (await load!({
     url: new URL('https://analytics.example/?site=test'),
   } as any)) as any;
-  expect(data.totals).toEqual({ pageviews: 3, events: 1 });
+  expect(data.totals).toEqual({ pageviews: 3, events: 1, sessions: 1 });
   expect(data.devices).toEqual(
     expect.arrayContaining([
       { label: 'Desktop', count: 1 },
@@ -190,7 +190,7 @@ test('collector accepts campaign/link metadata and engagement without counting h
   const data = (await load!({
     url: new URL('https://analytics.example/?site=test'),
   } as any)) as any;
-  expect(data.totals).toEqual({ pageviews: 4, events: 2 });
+  expect(data.totals).toEqual({ pageviews: 4, events: 2, sessions: 2 });
   expect(data.campaigns).toEqual([
     { source: 'newsletter', medium: '', campaign: 'launch', count: 1 },
   ]);

@@ -29,6 +29,7 @@ backups/
 *.sqlite-*
 
 # Generated from tracker/tracker.ts by build:tracker.
+/static/oddhouse.js
 /static/tracker.js
 
 /geoip/

@@ -14,6 +14,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     '/login',
     '/api/health',
     '/api/collect',
+    '/oddhouse.js',
     '/tracker.js',
     '/robots.txt',
   ]);
@@ -22,7 +23,7 @@ export const handle: Handle = async ({ event, resolve }) => {
     if (!user) redirect(303, '/login');
   }
   const response = await resolve(event);
-  if (!['/tracker.js', '/robots.txt'].includes(event.url.pathname)) {
+  if (!['/oddhouse.js', '/tracker.js', '/robots.txt'].includes(event.url.pathname)) {
     response.headers.set('Cache-Control', 'no-store');
   }
   response.headers.set('X-Content-Type-Options', 'nosniff');

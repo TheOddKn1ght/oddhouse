@@ -62,11 +62,12 @@ try {
     (await fetch(`${origin}/api/export?site=missing`, { redirect: 'manual' })).status,
     303,
   );
-  const tracker = await fetch(`${origin}/tracker.js`);
+  const tracker = await fetch(`${origin}/oddhouse.js`);
   assert.equal(tracker.status, 200);
   assert(tracker.headers.get('content-type')?.includes('javascript'));
   const trackerCode = await tracker.text();
-  assert.equal(trackerCode, await Bun.file('static/tracker.js').text());
+  assert.equal(trackerCode, await Bun.file('static/oddhouse.js').text());
+  assert.equal(await (await fetch(`${origin}/tracker.js`)).text(), trackerCode);
   assert(Buffer.byteLength(trackerCode) < Bun.file('tracker/tracker.ts').size);
 
   const signIn = await fetch(`${origin}/login`, {

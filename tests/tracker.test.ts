@@ -44,7 +44,7 @@ describe.each([
     runInNewContext(source, {
       document: {
         currentScript: {
-          src: 'https://stats.example/tracker.js',
+          src: 'https://stats.example/oddhouse.js',
           dataset: {
             site: 'site-one',
             auto: options.auto,

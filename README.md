@@ -65,7 +65,8 @@ for historical reports; temporary deduplication state still expires.
 The private live panel refreshes every 15 seconds: active sessions contacted the
 collector within 60 seconds, and recent views cover the last five minutes.
 These features start collecting after the tracker/server update; old data is
-not backfilled. The embed script URL stays unchanged.
+not backfilled. The tracker is served at `/oddhouse.js`; the old `/tracker.js`
+URL remains as an alias for existing embeds.
 
 Reports use UTC calendar dates. Choose a preset or a custom range of up to 366
 inclusive days. Totals show comparison with the immediately preceding range of

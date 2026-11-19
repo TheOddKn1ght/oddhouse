@@ -14,6 +14,8 @@ export async function compileTracker(minify: boolean) {
 
 if (import.meta.main) {
   const code = await compileTracker(!Bun.argv.includes('--development'));
-  await Bun.write(new URL('../static/tracker.js', import.meta.url), code);
-  console.log(`Built tracker.js (${Buffer.byteLength(code)} bytes)`);
+  // tracker.js is a legacy alias so embeds installed before the rename keep working.
+  for (const name of ['oddhouse.js', 'tracker.js'])
+    await Bun.write(new URL(`../static/${name}`, import.meta.url), code);
+  console.log(`Built oddhouse.js (${Buffer.byteLength(code)} bytes)`);
 }

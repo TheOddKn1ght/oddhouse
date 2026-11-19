@@ -2,7 +2,8 @@
 
 Reports, live activity and CSV exports expose private site data. Protect all
 routes by default in the server hook; keep the public allowlist small. Only
-login, health, collection, the tracker and robots are public. New report routes
+login, health, collection, the tracker (`/oddhouse.js`, plus the legacy
+`/tracker.js` alias kept for installed embeds) and robots are public. New report routes
 inherit authentication and no-store caching.
 
 Admin accounts are created through the local CLI. Store password hashes and

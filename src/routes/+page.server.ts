@@ -40,7 +40,7 @@ export const load: PageServerLoad = ({ url }) => {
     period,
     lastHit: selected ? collectionStatus(database(), selected.id) : null,
     snippet: selected
-      ? `<script defer src="${url.origin}/tracker.js" data-site="${selected.id}"></script>`
+      ? `<script defer src="${url.origin}/oddhouse.js" data-site="${selected.id}"></script>`
       : '',
   };
 };

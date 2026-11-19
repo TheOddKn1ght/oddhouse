@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { breakdownRequest } from '#lib/server/breakdown-request.js';
-import { breakdownReport, EXPORT_LIMIT } from '#lib/server/breakdowns.js';
+import { breakdownReport, describeFilters, EXPORT_LIMIT } from '#lib/server/breakdowns.js';
 import { csvCell } from '#lib/server/report-csv.js';
 
 export const GET: RequestHandler = ({ url, params }) => {
@@ -25,6 +25,7 @@ export const GET: RequestHandler = ({ url, params }) => {
     ['From (UTC)', period.from],
     ['To (UTC, inclusive)', period.to],
     ['Search', options.query],
+    ...describeFilters(options.filters).map((filter) => [`Filter: ${filter.title}`, filter.value]),
     [definition.label, 'Name', definition.unit],
     ...report.rows.map((row) => [row.label, row.name, row.count]),
   ];

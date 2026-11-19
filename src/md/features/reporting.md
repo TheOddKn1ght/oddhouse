@@ -79,3 +79,39 @@ page and site reports use the same boundaries and labels.
 Live snapshots carry their capture time. Show that time and explain refresh
 failures while retaining the last valid snapshot. A current-looking count must
 not conceal a failed refresh.
+
+Ranges longer than one day can also be grouped into weeks (Monday, UTC) or
+calendar months. Build those from the same daily query; never create a separate
+SQL bucket definition. Label each bucket by its first date inside the range, so
+partial first and last buckets are explicit. Hourly buckets remain only for
+single-day reports. CSV adds weekly or monthly rows only when chosen.
+
+The weekday-by-hour heatmap counts pageviews by UTC weekday and hour over the
+whole range. It is a pattern summary, not a time series. Keep a readable count
+table with the shading, so color is never the only signal.
+
+## Filters
+
+Owners can narrow the overview, breakdown explorer and their CSV exports to
+exact dimension values: path, referrer, country, browser, device, OS, language
+and the three campaign fields. Filters live in the URL as `f_<name>` and
+combine with AND. They match the displayed stored label, including `Unknown`
+and `Direct / unknown`, so clicking a row always reproduces its count. Filter
+values are exact; use explorer search for substring lookups.
+
+Hit reports filter each hit directly. Journey reports (sessions, entry and
+exit pages, session quality, goals and funnels) count journeys that contain a
+matching pageview. Only journeys linked to their hits support this, so
+filtered journey totals exclude data recorded before the link existed. State
+this when filters are active. Engagement uses the path filter directly and the
+other filters through the page's journey. Live activity ignores filters.
+Page reports remain path-scoped and do not carry dashboard filters.
+
+## Session quality
+
+Bounce rate, pages per session and session duration describe linked journeys
+started in the range. A bounce is a journey with exactly one counted pageview;
+events do not change it. Duration is last contact minus start, including
+engagement snapshots and suppressed returns; journeys still in progress show
+their duration so far. Journeys created before the pageview counter existed
+are excluded, never treated as zero-page sessions.

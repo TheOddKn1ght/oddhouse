@@ -18,6 +18,12 @@ suppressed return still updates the exit page. After 30 minutes idle, a new
 pageview starts a new journey. Campaign attribution comes from the first page
 of that journey. Do not change campaign attribution on later pages.
 
+Each stored hit and engagement row keeps its durable journey ID when the hit
+had a session. Journeys count their stored pageviews and events. This link lets
+reports filter journeys and build goals and funnels. Journey IDs are random,
+are never exported, and cannot be reversed into browser tokens. Older data is
+not backfilled.
+
 Engagement is a cumulative snapshot, not an extra pageview or custom event.
 Retries and out-of-order samples must not inflate totals: retain maxima, bound
 active time by elapsed time, and require a matching page and journey. It means

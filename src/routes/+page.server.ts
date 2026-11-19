@@ -6,13 +6,35 @@ import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { database, sites } from '#lib/server/database.js';
 import { cookieName, deleteSession } from '#lib/server/auth.js';
+import { parseFilters } from '#lib/server/hit-filters.js';
+import { chartInterval } from '#lib/server/view-series.js';
+import { describeFilters } from '#lib/server/breakdowns.js';
+import {
+  createFunnel,
+  createGoal,
+  deleteDefinition,
+  MAX_FUNNEL_STEPS,
+} from '#lib/server/conversions.js';
+import { RETENTION_OPTIONS, schedulePurge, setRetention } from '#lib/server/retention.js';
+
+function formSite(form: FormData) {
+  const id = String(form.get('id') || '');
+  return sites().find((site) => site.id === id);
+}
 
 export const load: PageServerLoad = ({ url }) => {
   const allSites = sites();
   const selected = allSites.find((site) => site.id === url.searchParams.get('site')) ?? allSites[0];
   const period = reportPeriod(url.searchParams);
+  const filters = parseFilters(url.searchParams);
+  const interval = chartInterval(url.searchParams, period);
   return {
-    ...dashboardReport(database(), selected?.id || '', period),
+    ...dashboardReport(database(), selected?.id || '', period, filters, interval),
+    filters,
+    filterChips: describeFilters(filters),
+    interval,
+    retentionOptions: RETENTION_OPTIONS,
+    maxFunnelSteps: MAX_FUNNEL_STEPS,
     sites: allSites,
     selected,
     period,
@@ -33,6 +55,49 @@ export const actions: Actions = {
     );
     if (result.error) return fail(result.status, { renameError: result.error });
     return { renamed: true };
+  },
+  setRetention: async ({ request }) => {
+    const form = await request.formData();
+    const result = setRetention(
+      database(),
+      String(form.get('id') || ''),
+      String(form.get('retention') ?? ''),
+    );
+    if (result.error) return fail(result.status, { settingsError: result.error });
+    schedulePurge(database());
+    return { settingsSaved: 'Retention saved.' };
+  },
+  createGoal: async ({ request }) => {
+    const form = await request.formData();
+    const site = formSite(form);
+    if (!site) return fail(404, { settingsError: 'Site not found.' });
+    const result = createGoal(database(), site.id, {
+      name: form.get('name'),
+      kind: form.get('kind'),
+      value: form.get('value'),
+    });
+    if (result.error) return fail(400, { settingsError: result.error });
+    return { settingsSaved: 'Goal added.' };
+  },
+  createFunnel: async ({ request }) => {
+    const form = await request.formData();
+    const site = formSite(form);
+    if (!site) return fail(404, { settingsError: 'Site not found.' });
+    const steps = Array.from({ length: MAX_FUNNEL_STEPS }, (_, index) => ({
+      kind: form.get(`kind${index}`),
+      value: form.get(`value${index}`),
+    }));
+    const result = createFunnel(database(), site.id, form.get('name'), steps);
+    if (result.error) return fail(400, { settingsError: result.error });
+    return { settingsSaved: 'Funnel added.' };
+  },
+  deleteDefinition: async ({ request }) => {
+    const form = await request.formData();
+    const site = formSite(form);
+    if (!site) return fail(404, { settingsError: 'Site not found.' });
+    const type = form.get('type') === 'funnel' ? 'funnel' : 'goal';
+    deleteDefinition(database(), site.id, type, String(form.get('definition') || ''));
+    return { settingsSaved: type === 'goal' ? 'Goal deleted.' : 'Funnel deleted.' };
   },
   createSite: async ({ request }) => {
     const form = await request.formData();

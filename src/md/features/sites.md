@@ -5,6 +5,10 @@ rename a site without changing its ID, embed code, origin, or historical data.
 Names must remain nonempty and at most 100 characters. Keep renaming separate
 from adding a site and preserve report filters after saving.
 
+Site settings also hold the retention period (forever, 90, 180, 365 or 730
+days) and goal and funnel definitions. Saving any of them preserves the current
+report filters.
+
 Show the timestamp of the latest stored pageview or event, across all dates,
 near tracker installation. This confirms that data reached storage, not that
 all visitors are being tracked. No data means no accepted hit has been stored;

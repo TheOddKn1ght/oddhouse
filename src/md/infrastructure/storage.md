@@ -8,7 +8,14 @@ when adopting an old schema; never replace migrations with table recreation.
 Hits, journey summaries and page engagement are durable report data. Visits and
 visit-page rows are temporary deduplication state. Deleting temporary state must
 not erase historical entry or exit reports. Site foreign keys cascade to its
-data. There is no automatic retention policy for durable analytics today.
+data, including goal and funnel definitions.
+
+Durable analytics are kept forever unless an owner picks a per-site retention
+period. Retention deletes hits, journeys and engagement older than the cutoff
+(journeys by start time) at startup, hourly, and right after the setting is
+saved. Deletes run in small batches so collector writes are not blocked for
+long. Deletion is permanent, so the setting states it, and backups made earlier
+still contain the old data.
 
 Back up SQLite through the supported backup command, not a casual file copy
 while WAL writes are active. Keep copies off the host. Restore only through an

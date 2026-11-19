@@ -1,10 +1,15 @@
 <script lang="ts">
   import ViewChart from '#lib/components/ViewChart.svelte';
-  import { pageReportUrl } from '#lib/report-links.js';
+  import Heatmap from '#lib/components/Heatmap.svelte';
+  import FilterBar from '#lib/components/FilterBar.svelte';
+  import ConversionReports from '#lib/components/ConversionReports.svelte';
+  import SiteSettings from '#lib/components/SiteSettings.svelte';
+  import { pageReportUrl, reportParams, withFilter } from '#lib/report-links.js';
   import {
     comparison,
     formatCount as format,
     formatDuration as duration,
+    formatPercent as percent,
   } from '#lib/report-format.js';
   import { onMount } from 'svelte';
   import type { PageProps } from './$types';
@@ -12,14 +17,20 @@
   let adding = $state(false);
   let copied = $state(false);
   let customDates = $state(false);
-  let exportUrl = $derived(
-    `/api/export?${new URLSearchParams({ site: data.selected?.id || '', from: data.period.from, to: data.period.to })}`,
+  let base = $derived(
+    reportParams(
+      data.selected?.id || '',
+      data.period,
+      data.filters,
+      data.interval === 'week' || data.interval === 'month' ? { interval: data.interval } : {},
+    ),
   );
-  let renameAction = $derived(
-    `?/renameSite&${new URLSearchParams({ site: data.selected?.id || '', from: data.period.from, to: data.period.to })}`,
-  );
+  let exportUrl = $derived(`/api/export?${base}`);
+  let renameAction = $derived(`?/renameSite&${base}`);
   const reportUrl = (dimension: string) =>
-    `/reports/${dimension}?${new URLSearchParams({ site: data.selected?.id || '', from: data.period.from, to: data.period.to })}`;
+    `/reports/${dimension}?${reportParams(data.selected?.id || '', data.period, data.filters)}`;
+  const filterUrl = (key: string, value: string) => `?${withFilter(base, key, value)}`;
+  let filtered = $derived(data.filterChips.length > 0);
   let liveErrorSite = $state<string | null>(null);
   let liveErrorAt = $state(0);
   const pageUrl = (path: string) => pageReportUrl(data.selected?.id || '', path, data.period);
@@ -111,6 +122,23 @@
           >Last 30 days</option
         ><option value="90">Last 90 days</option><option value="custom">Custom dates</option>
       </select>
+      {#each Object.entries(data.filters) as [key, value]}<input
+          type="hidden"
+          name={`f_${key}`}
+          {value}
+        />{/each}
+      {#if data.days > 1 || customDates}
+        <label class="sr-only" for="interval">Chart interval</label>
+        <select
+          name="interval"
+          id="interval"
+          value={data.interval === 'hour' ? 'day' : data.interval}
+          onchange={(event) => event.currentTarget.form?.requestSubmit()}
+          ><option value="day">Daily</option><option value="week">Weekly</option><option
+            value="month">Monthly</option
+          ></select
+        >
+      {/if}
       {#if data.period.custom || customDates}
         <label class="date-filter"
           >From (UTC)<input
@@ -141,6 +169,7 @@
   {#if data.period.error}<p class="error" role="alert">
       {data.period.error} Showing {data.period.from}–{data.period.to}.
     </p>{/if}
+  {#if data.selected}<FilterBar chips={data.filterChips} params={base} journeyNote />{/if}
   {#if adding || !data.sites.length || form?.error}
     <section class="panel">
       <h2>Add a site</h2>
@@ -195,12 +224,43 @@
         </p>
       </div>
     </section>
+    <section class="metrics" aria-label="Session quality">
+      <div>
+        <p>Bounce rate</p>
+        <strong>{data.quality.sessions ? percent(data.quality.bounceRate) : '—'}</strong>
+        <p class="comparison muted">
+          vs {data.previousQuality.sessions ? percent(data.previousQuality.bounceRate) : '—'}
+        </p>
+      </div>
+      <div>
+        <p>Pages per session</p>
+        <strong>{data.quality.sessions ? data.quality.pagesPerSession.toFixed(2) : '—'}</strong>
+        <p class="comparison muted">
+          vs {data.previousQuality.sessions ? data.previousQuality.pagesPerSession.toFixed(2) : '—'}
+        </p>
+      </div>
+      <div>
+        <p>Session duration</p>
+        <strong>{data.quality.sessions ? duration(data.quality.averageDurationMs) : '—'}</strong>
+        <p class="comparison muted">
+          vs {data.previousQuality.sessions
+            ? duration(data.previousQuality.averageDurationMs)
+            : '—'}
+        </p>
+      </div>
+    </section>
     <p class="muted small">
       Compared with the preceding {data.days} UTC calendar {data.days === 1 ? 'day' : 'days'}. {#if data.period.to === data.period.today}Today
         is still in progress.
-      {/if}Sessions expire after 30 minutes idle; they are not unique visitors.
+      {/if}Sessions expire after 30 minutes idle; they are not unique visitors. Quality averages
+      cover {format(data.quality.sessions)} sessions recorded since page counting was added; a bounce
+      is a session with one counted pageview.
     </p>
     <ViewChart series={data.chartSeries} granularity={data.granularity} />
+    <Heatmap grid={data.heatmap.grid} peak={data.heatmap.peak} />
+    <div class="tables">
+      <ConversionReports goals={data.goals} funnels={data.funnels} />
+    </div>
     <section class="panel">
       <h2>Live activity <span class="muted small">· Now, independent of report dates</span></h2>
       <p>
@@ -238,9 +298,12 @@
         <table>
           <thead><tr><th>Path</th><th>Views</th></tr></thead><tbody
             >{#each data.pages as page}<tr
-                ><td class="break"><a href={pageUrl(page.path)}>{page.path}</a></td><td
-                  >{format(page.count)}</td
-                ></tr
+                ><td class="break"
+                  ><a href={pageUrl(page.path)}>{page.path}</a>
+                  <a class="filter-link" href={filterUrl('path', page.path)}
+                    >filter<span class="sr-only"> by {page.path}</span></a
+                  ></td
+                ><td>{format(page.count)}</td></tr
               >{:else}<tr><td colspan="2" class="empty">No pageviews in this period.</td></tr
               >{/each}</tbody
           >
@@ -256,9 +319,11 @@
         <table>
           <thead><tr><th>Source</th><th>Views</th></tr></thead><tbody
             >{#each data.referrers as referrer}<tr
-                ><td class="break">{referrer.referrer || 'Direct / unknown'}</td><td
-                  >{format(referrer.count)}</td
-                ></tr
+                ><td class="break"
+                  ><a href={filterUrl('referrer', referrer.value)} title="Filter by this referrer"
+                    >{referrer.referrer || 'Direct / unknown'}</a
+                  ></td
+                ><td>{format(referrer.count)}</td></tr
               >{:else}<tr><td colspan="2" class="empty">No referrers in this period.</td></tr
               >{/each}</tbody
           >
@@ -290,7 +355,11 @@
         <table>
           <thead><tr><th>Country</th><th>Views</th></tr></thead><tbody>
             {#each data.countries as country}<tr
-                ><td class="break">{country.name}</td><td>{format(country.count)}</td></tr
+                ><td class="break"
+                  ><a href={filterUrl('country', country.value)} title="Filter by this country"
+                    >{country.name}</a
+                  ></td
+                ><td>{format(country.count)}</td></tr
               >
             {:else}<tr><td colspan="2" class="empty">No pageviews in this period.</td></tr>{/each}
           </tbody>
@@ -309,15 +378,18 @@
         <table>
           <thead><tr><th>Browser</th><th>Views</th></tr></thead><tbody>
             {#each data.browsers as browser}<tr
-                ><td class="break">{browser.browser || 'Unknown'}</td><td
-                  >{format(browser.count)}</td
-                ></tr
+                ><td class="break"
+                  ><a
+                    href={filterUrl('browser', browser.browser || 'Unknown')}
+                    title="Filter by this browser">{browser.browser || 'Unknown'}</a
+                  ></td
+                ><td>{format(browser.count)}</td></tr
               >
             {:else}<tr><td colspan="2" class="empty">No pageviews in this period.</td></tr>{/each}
           </tbody>
         </table>
       </section>
-      {#each [{ key: 'devices', title: 'Devices', label: 'Device', rows: data.devices }, { key: 'os', title: 'Operating systems', label: 'OS', rows: data.operatingSystems }, { key: 'languages', title: 'Languages', label: 'Language', rows: data.languages }] as breakdown}
+      {#each [{ key: 'devices', filter: 'device', title: 'Devices', label: 'Device', rows: data.devices }, { key: 'os', filter: 'os', title: 'Operating systems', label: 'OS', rows: data.operatingSystems }, { key: 'languages', filter: 'language', title: 'Languages', label: 'Language', rows: data.languages }] as breakdown}
         <section class="panel">
           <div class="panel-heading">
             <h2>{breakdown.title}</h2>
@@ -331,7 +403,11 @@
             <thead><tr><th>{breakdown.label}</th><th>Views</th></tr></thead>
             <tbody
               >{#each breakdown.rows as row}<tr
-                  ><td class="break">{row.label}</td><td>{format(row.count)}</td></tr
+                  ><td class="break"
+                    ><a href={filterUrl(breakdown.filter, row.value)} title="Filter by this value"
+                      >{row.label}</a
+                    ></td
+                  ><td>{format(row.count)}</td></tr
                 >
               {:else}<tr><td colspan="2" class="empty">No pageviews in this period.</td></tr
                 >{/each}</tbody
@@ -345,8 +421,12 @@
           <thead><tr><th>Source / medium / campaign</th><th>Views</th></tr></thead><tbody>
             {#each data.campaigns as campaign}<tr
                 ><td
-                  >{campaign.source || '—'} / {campaign.medium || '—'} / {campaign.campaign ||
-                    '—'}</td
+                  ><a
+                    href={`?${withFilter(withFilter(withFilter(base, 'utm_source', campaign.source), 'utm_medium', campaign.medium), 'utm_campaign', campaign.campaign)}`}
+                    title="Filter by this campaign"
+                    >{campaign.source || '—'} / {campaign.medium || '—'} / {campaign.campaign ||
+                      '—'}</a
+                  ></td
                 ><td>{format(campaign.count)}</td></tr
               >
             {:else}<tr><td colspan="2" class="empty">No campaign pageviews.</td></tr>{/each}
@@ -398,6 +478,18 @@
       </p>
     </details>
     {#if form?.renamed}<p role="status">Site name saved.</p>{/if}
+    <SiteSettings
+      siteId={data.selected.id}
+      query={base}
+      retention={data.selected.retention_days}
+      retentionOptions={data.retentionOptions}
+      goals={data.goals}
+      funnels={data.funnels}
+      maxSteps={data.maxFunnelSteps}
+      open={!!form?.settingsError || !!form?.settingsSaved}
+    />
+    {#if form?.settingsError}<p class="error" role="alert">{form.settingsError}</p>{/if}
+    {#if form?.settingsSaved}<p role="status">{form.settingsSaved}</p>{/if}
     <section class="panel integration">
       <h2>Install tracker</h2>
       <p class="collection-status">

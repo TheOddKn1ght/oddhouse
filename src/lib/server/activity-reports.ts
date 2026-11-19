@@ -1,7 +1,8 @@
 import { and, count, desc, eq, gte, lt, lte, sql } from 'drizzle-orm';
 import type { openDatabase } from './database';
 import { hits, journeys, pageActivity } from './schema';
-import { breakdownRows } from './breakdowns';
+import { breakdownRows, defaultBreakdownOptions } from './breakdowns';
+import { hitFilter, journeyFilter, type Filters } from './hit-filters';
 import { SESSION_IDLE_MS } from './record-hit';
 
 type DB = ReturnType<typeof openDatabase>;
@@ -32,13 +33,16 @@ export function activityReports(
   since: number,
   now = Date.now(),
   until = Number.MAX_SAFE_INTEGER,
+  filters: Filters = {},
 ) {
   const views = and(
     eq(hits.site_id, siteId),
     gte(hits.created_at, since),
     lt(hits.created_at, until),
     eq(hits.kind, 'pageview'),
+    hitFilter(filters),
   );
+  const journeysMatch = journeyFilter(filters, journeys.id);
   const campaigns = db
     .select({
       source: hits.utm_source,
@@ -65,6 +69,7 @@ export function activityReports(
         eq(journeys.site_id, siteId),
         gte(journeys.started_at, since),
         lt(journeys.started_at, until),
+        journeysMatch,
       ),
     )
     .groupBy(journeys.entry_path)
@@ -80,6 +85,7 @@ export function activityReports(
         gte(journeys.last_seen, since),
         lt(journeys.last_seen, until),
         lte(journeys.last_seen, now - SESSION_IDLE_MS),
+        journeysMatch,
       ),
     )
     .groupBy(journeys.exit_path)
@@ -98,19 +104,22 @@ export function activityReports(
         eq(pageActivity.site_id, siteId),
         gte(pageActivity.created_at, since),
         lt(pageActivity.created_at, until),
+        filters.path === undefined ? undefined : eq(pageActivity.path, filters.path),
+        journeyFilter(filters, pageActivity.journey_id, ['path']),
       ),
     )
     .groupBy(pageActivity.path)
     .orderBy(desc(sql`sum(${pageActivity.active_ms})`), pageActivity.path)
     .limit(20)
     .all();
+  const options = { ...defaultBreakdownOptions(), filters };
   return {
     campaigns,
-    outboundLinks: breakdownRows(db, siteId, { since, until }, 'outbound').map((row) => ({
+    outboundLinks: breakdownRows(db, siteId, { since, until }, 'outbound', options).map((row) => ({
       target: row.label,
       count: row.count,
     })),
-    downloads: breakdownRows(db, siteId, { since, until }, 'downloads').map((row) => ({
+    downloads: breakdownRows(db, siteId, { since, until }, 'downloads', options).map((row) => ({
       target: row.label,
       count: row.count,
     })),

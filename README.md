@@ -73,6 +73,17 @@ the same length; today's totals are still partial. Sessions count journeys that
 started during the period, not unique visitors. Historical session totals begin
 with the version that introduced journey collection.
 
+Click a breakdown row to filter the whole report by that value; filters combine
+and stay in the URL, explorer pages and CSV exports. Session, entry/exit, quality,
+goal and funnel figures then count sessions that include a matching pageview.
+Bounce rate, pages per session, session duration, goals and funnels rely on
+hit-to-session links collected from this version on; older data is excluded.
+Define goals (an event name or a page path, with `*` for a prefix) and funnels of
+2–5 ordered steps under **Retention, goals and funnels**. Long ranges can be
+charted weekly or monthly, and a weekday × hour heatmap shows when pageviews
+happen (UTC). Retention is off by default; choosing 90–730 days permanently
+deletes older hits, sessions and engagement hourly. Backups keep earlier data.
+
 Use **Export CSV** for the selected report's totals, comparison, daily counts,
 and breakdowns (top 20 per category). Exports require login and contain aggregate
 data, without browser session identifiers. Engagement is attributed to the date

@@ -2,14 +2,23 @@ import { and, asc, count, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import { hits } from './schema';
 import type { openDatabase } from './database';
 import type { ReportPeriod } from './report-period';
+import { filterFields, hitFilter, parseFilters, type FilterKey, type Filters } from './hit-filters';
 
 export const breakdowns = {
-  pages: { title: 'Pages', label: 'Path', unit: 'Pageviews', column: hits.path, kind: 'pageview' },
+  pages: {
+    title: 'Pages',
+    label: 'Path',
+    unit: 'Pageviews',
+    column: hits.path,
+    kind: 'pageview',
+    filter: 'path',
+  },
   referrers: {
     title: 'Referrers',
     label: 'Source',
     unit: 'Pageviews',
     column: hits.referrer,
+    filter: 'referrer',
     kind: 'pageview',
     empty: 'Direct / unknown',
   },
@@ -19,6 +28,7 @@ export const breakdowns = {
     label: 'Country code',
     unit: 'Pageviews',
     column: hits.country,
+    filter: 'country',
     kind: 'pageview',
   },
   browsers: {
@@ -26,6 +36,7 @@ export const breakdowns = {
     label: 'Browser',
     unit: 'Pageviews',
     column: hits.browser,
+    filter: 'browser',
     kind: 'pageview',
   },
   devices: {
@@ -33,6 +44,7 @@ export const breakdowns = {
     label: 'Device',
     unit: 'Pageviews',
     column: hits.device,
+    filter: 'device',
     kind: 'pageview',
   },
   os: {
@@ -40,6 +52,7 @@ export const breakdowns = {
     label: 'OS',
     unit: 'Pageviews',
     column: hits.os,
+    filter: 'os',
     kind: 'pageview',
   },
   languages: {
@@ -47,6 +60,7 @@ export const breakdowns = {
     label: 'Language code',
     unit: 'Pageviews',
     column: hits.language,
+    filter: 'language',
     kind: 'pageview',
   },
   outbound: {
@@ -65,7 +79,7 @@ export const breakdowns = {
     kind: 'event',
     event: 'file_download',
   },
-} as const;
+} as const satisfies Record<string, { filter?: FilterKey } & Record<string, unknown>>;
 export type Breakdown = keyof typeof breakdowns;
 export const PAGE_SIZE = 50;
 export const EXPORT_LIMIT = 10000;
@@ -78,6 +92,7 @@ export function breakdownOptions(params: URLSearchParams) {
     query: (params.get('q') || '').trim().slice(0, 200),
     sort: params.get('sort') === 'label' ? ('label' as const) : ('count' as const),
     page: Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1,
+    filters: parseFilters(params),
   };
 }
 export function displayLabel(key: Breakdown, label: string) {
@@ -93,10 +108,23 @@ export function displayLabel(key: Breakdown, label: string) {
   return label;
 }
 
+export function describeFilters(filters: Filters) {
+  return Object.entries(filters).map(([key, value]) => {
+    const name =
+      key === 'country'
+        ? displayLabel('countries', value!)
+        : key === 'language'
+          ? displayLabel('languages', value!)
+          : value || '(none)';
+    return { key, title: filterFields[key as FilterKey].title, value: value!, name };
+  });
+}
+
 type DB = ReturnType<typeof openDatabase>;
 type Bounds = Pick<ReportPeriod, 'since' | 'until'>;
 type Options = ReturnType<typeof breakdownOptions>;
-const defaults = () => breakdownOptions(new URLSearchParams());
+export const defaultBreakdownOptions = () => breakdownOptions(new URLSearchParams());
+const defaults = defaultBreakdownOptions;
 function breakdownScope(siteId: string, period: Bounds, key: Breakdown, options: Options) {
   const definition = breakdowns[key];
   const empty = 'empty' in definition ? definition.empty : 'Unknown';
@@ -109,6 +137,7 @@ function breakdownScope(siteId: string, period: Bounds, key: Breakdown, options:
     'event' in definition
       ? and(eq(hits.event, definition.event), sql`${hits.target} != ''`)
       : undefined,
+    hitFilter(options.filters),
     options.query
       ? sql`instr(oddhouse_lower(${label}), ${options.query.normalize('NFC').toLowerCase()}) > 0`
       : undefined,

@@ -1,6 +1,13 @@
-import type { Handle } from '@sveltejs/kit/hooks';
+import type { Handle, ServerInit } from '@sveltejs/kit/hooks';
 import { redirect } from '@sveltejs/kit';
 import { cookieName, userForSession } from '#lib/server/auth.js';
+import { database } from '#lib/server/database.js';
+import { schedulePurge } from '#lib/server/retention.js';
+
+export const init: ServerInit = () => {
+  schedulePurge(database());
+  setInterval(() => schedulePurge(database()), 3600000).unref();
+};
 
 export const handle: Handle = async ({ event, resolve }) => {
   const publicPaths = new Set([

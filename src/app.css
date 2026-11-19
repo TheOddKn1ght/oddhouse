@@ -272,3 +272,93 @@ details {
   overflow-wrap: anywhere;
   font-size: clamp(1.4rem, 4vw, 2rem);
 }
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin: -1rem 0 2rem;
+}
+.filter-bar p {
+  flex-basis: 100%;
+  margin: 0;
+}
+.chip {
+  padding: 0.15rem 0.6rem;
+  border: 1px solid #555;
+  border-radius: 1rem;
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+.filter-link {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  color: #999;
+}
+.heatmap-scroll {
+  overflow-x: auto;
+}
+.heatmap {
+  min-width: 40rem;
+  table-layout: fixed;
+}
+.heatmap th,
+.heatmap td,
+.heatmap th:last-child,
+.heatmap td:last-child {
+  width: auto;
+  padding: 0.3rem 0;
+  text-align: center;
+  font-size: 0.7rem;
+  border-bottom: 1px solid #0a0a0a;
+}
+.heatmap th:first-child {
+  width: 2.5rem;
+  text-align: left;
+}
+.heatmap td:first-child {
+  padding-right: 0;
+}
+.heatmap td.hot {
+  color: #0a0a0a;
+}
+.wide-table th:not(:first-child),
+.wide-table td:not(:first-child) {
+  text-align: right;
+  width: 6rem;
+  font-variant-numeric: tabular-nums;
+}
+.funnel-bar {
+  height: 0.35rem;
+  margin-top: 0.3rem;
+  background: #222;
+}
+.funnel-bar div {
+  height: 100%;
+  background: #aaa;
+}
+.definitions {
+  padding: 0;
+  list-style: none;
+}
+.definitions li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid #333;
+}
+.funnel-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0 0 0.5rem;
+}
+.funnel-form fieldset label input {
+  margin: 0;
+}
+.site-settings select {
+  display: block;
+  margin-top: 0.25rem;
+}

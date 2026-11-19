@@ -6,3 +6,6 @@ export function comparison(current: number, previous: number) {
   const percent = ((current - previous) / previous) * 100;
   return `${percent > 0 ? '+' : ''}${percent.toFixed(1)}%`;
 }
+export const formatPercent = (ratio: number) => `${(ratio * 100).toFixed(1)}%`;
+export const formatCompact = (value: number) =>
+  new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(value);

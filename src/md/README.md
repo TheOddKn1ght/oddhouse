@@ -12,6 +12,7 @@ Update the relevant intent when a feature's behavior changes.
 ## File Index
 
 - [features/reporting.md](features/reporting.md): UTC ranges, comparisons, session meaning, and export decisions.
+- [features/conversions.md](features/conversions.md): goal and funnel matching, journey-based rates, and limits.
 - [features/sites.md](features/sites.md): site identity, renaming, and tracker collection status.
 - [features/collection.md](features/collection.md): privacy boundaries, repeat filtering, campaign attribution, and engagement.
 - [api/access.md](api/access.md): private reports, public collection, and admin session intent.

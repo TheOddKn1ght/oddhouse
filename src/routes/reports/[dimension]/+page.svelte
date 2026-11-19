@@ -1,21 +1,18 @@
 <script lang="ts">
-  import { pageReportUrl } from '#lib/report-links.js';
+  import { pageReportUrl, reportParams } from '#lib/report-links.js';
+  import FilterBar from '#lib/components/FilterBar.svelte';
   import type { PageProps } from './$types';
   let { data }: PageProps = $props();
   const format = (value: number) => value.toLocaleString();
+  let filtersOnly = $derived(reportParams(data.site.id, data.period, data.options.filters));
   let base = $derived(
-    new URLSearchParams({
-      site: data.site.id,
-      from: data.period.from,
-      to: data.period.to,
+    reportParams(data.site.id, data.period, data.options.filters, {
       q: data.options.query,
       sort: data.options.sort,
     }),
   );
   const pageUrl = (page: number) => `?${base}&page=${page}`;
-  let back = $derived(
-    `/?${new URLSearchParams({ site: data.site.id, from: data.period.from, to: data.period.to })}`,
-  );
+  let back = $derived(`/?${filtersOnly}`);
   let download = $derived(`/reports/${data.dimension}/export?${base}`);
 </script>
 
@@ -38,6 +35,11 @@
     <input type="hidden" name="site" value={data.site.id} />
     <input type="hidden" name="from" value={data.period.from} />
     <input type="hidden" name="to" value={data.period.to} />
+    {#each Object.entries(data.options.filters) as [key, value]}<input
+        type="hidden"
+        name={`f_${key}`}
+        {value}
+      />{/each}
     <label class="date-filter"
       >Search {data.definition.label.toLowerCase()}<input
         type="search"
@@ -54,11 +56,9 @@
       ></label
     >
     <button>Search</button>
-    {#if data.options.query}<a
-        href={`?site=${encodeURIComponent(data.site.id)}&from=${data.period.from}&to=${data.period.to}`}
-        >Clear search</a
-      >{/if}
+    {#if data.options.query}<a href={`?${filtersOnly}`}>Clear search</a>{/if}
   </form>
+  <FilterBar chips={data.filterChips} params={base} />
   <div class="toolbar">
     <p class="muted" aria-live="polite">
       {format(data.report.totals.rows)} matching rows · {format(data.report.totals.count)}

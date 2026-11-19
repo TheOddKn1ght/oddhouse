@@ -106,23 +106,23 @@ test('collector and dashboard preserve dimensions and count only unfiltered page
   expect(data.totals).toEqual({ pageviews: 3, events: 1, sessions: 1 });
   expect(data.devices).toEqual(
     expect.arrayContaining([
-      { label: 'Desktop', count: 1 },
-      { label: 'Mobile', count: 1 },
-      { label: 'Unknown', count: 1 },
+      expect.objectContaining({ label: 'Desktop', count: 1 }),
+      expect.objectContaining({ label: 'Mobile', count: 1 }),
+      expect.objectContaining({ label: 'Unknown', count: 1 }),
     ]),
   );
   expect(data.operatingSystems).toEqual(
     expect.arrayContaining([
-      { label: 'Windows', count: 1 },
-      { label: 'Android', count: 1 },
-      { label: 'Unknown', count: 1 },
+      expect.objectContaining({ label: 'Windows', count: 1 }),
+      expect.objectContaining({ label: 'Android', count: 1 }),
+      expect.objectContaining({ label: 'Unknown', count: 1 }),
     ]),
   );
   expect(data.languages).toEqual(
     expect.arrayContaining([
-      { label: 'French', count: 1 },
-      { label: 'German', count: 1 },
-      { label: 'Unknown', count: 1 },
+      expect.objectContaining({ label: 'French', count: 1 }),
+      expect.objectContaining({ label: 'German', count: 1 }),
+      expect.objectContaining({ label: 'Unknown', count: 1 }),
     ]),
   );
 });

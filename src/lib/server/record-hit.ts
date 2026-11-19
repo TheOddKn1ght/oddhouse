@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, eq, lte } from 'drizzle-orm';
+import { and, eq, lte, sql } from 'drizzle-orm';
 import type { openDatabase } from './database';
 import type { HitDimensions } from './dimensions';
 import type { Hit } from './collection';
@@ -49,6 +49,7 @@ export function recordHit(
       utm_medium: hit.utm_medium || '',
       utm_campaign: hit.utm_campaign || '',
     };
+    let journeyId: string | null = null;
     if (visitId) {
       tx.insert(visits)
         .values({ id: visitId, site_id: siteId, last_seen: now })
@@ -56,10 +57,10 @@ export function recordHit(
         .run();
       let visit = tx.select().from(visits).where(eq(visits.id, visitId)).get()!;
       if (hit.kind === 'pageview' && !visit.journey_id) {
-        const journeyId = randomUUID();
+        const created = randomUUID();
         tx.insert(journeys)
           .values({
-            id: journeyId,
+            id: created,
             site_id: siteId,
             started_at: now,
             last_seen: now,
@@ -68,9 +69,10 @@ export function recordHit(
             ...campaign,
           })
           .run();
-        tx.update(visits).set({ journey_id: journeyId }).where(eq(visits.id, visitId)).run();
-        visit = { ...visit, journey_id: journeyId };
+        tx.update(visits).set({ journey_id: created }).where(eq(visits.id, visitId)).run();
+        visit = { ...visit, journey_id: created };
       }
+      journeyId = visit.journey_id;
       if (visit.journey_id) {
         const journey = tx.select().from(journeys).where(eq(journeys.id, visit.journey_id)).get()!;
         campaign = {
@@ -91,6 +93,7 @@ export function recordHit(
               site_id: siteId,
               path: hit.path,
               created_at: now,
+              journey_id: visit.journey_id,
             })
             .onConflictDoNothing()
             .run();
@@ -121,8 +124,19 @@ export function recordHit(
         ...campaign,
         ...dimensions,
         created_at: now,
+        journey_id: journeyId,
       })
       .run();
+    if (journeyId) {
+      tx.update(journeys)
+        .set(
+          hit.kind === 'pageview'
+            ? { pageviews: sql`${journeys.pageviews} + 1` }
+            : { events: sql`${journeys.events} + 1` },
+        )
+        .where(eq(journeys.id, journeyId))
+        .run();
+    }
     return true;
   });
 }

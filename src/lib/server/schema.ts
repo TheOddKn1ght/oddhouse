@@ -17,6 +17,7 @@ export const sites = sqliteTable('sites', {
   name: text('name').notNull(),
   origin: text('origin').notNull().unique(),
   created_at: integer('created_at').notNull(),
+  retention_days: integer('retention_days'),
 });
 export const hits = sqliteTable(
   'hits',
@@ -40,9 +41,11 @@ export const hits = sqliteTable(
     utm_medium: text('utm_medium').notNull().default(''),
     utm_campaign: text('utm_campaign').notNull().default(''),
     target: text('target').notNull().default(''),
+    journey_id: text('journey_id'),
   },
   (table) => [
     index('hits_site_time').on(table.site_id, table.created_at),
+    index('hits_journey').on(table.journey_id, table.created_at),
     check('hits_kind_check', sql`${table.kind} IN ('pageview', 'event')`),
   ],
 );
@@ -88,6 +91,8 @@ export const journeys = sqliteTable(
     utm_source: text('utm_source').notNull().default(''),
     utm_medium: text('utm_medium').notNull().default(''),
     utm_campaign: text('utm_campaign').notNull().default(''),
+    pageviews: integer('pageviews').notNull().default(0),
+    events: integer('events').notNull().default(0),
   },
   (table) => [
     index('journeys_site_start').on(table.site_id, table.started_at),
@@ -105,6 +110,39 @@ export const pageActivity = sqliteTable(
     active_ms: integer('active_ms').notNull().default(0),
     max_scroll: integer('max_scroll').notNull().default(0),
     created_at: integer('created_at').notNull(),
+    journey_id: text('journey_id'),
   },
   (table) => [index('activity_site_time').on(table.site_id, table.created_at)],
+);
+
+// A goal or funnel step matches an exact event name, or a path with an optional trailing '*'.
+export const goals = sqliteTable(
+  'goals',
+  {
+    id: text('id').primaryKey().notNull(),
+    site_id: text('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    kind: text('kind', { enum: ['path', 'event'] }).notNull(),
+    value: text('value').notNull(),
+    created_at: integer('created_at').notNull(),
+  },
+  (table) => [
+    index('goals_site').on(table.site_id),
+    check('goals_kind_check', sql`${table.kind} IN ('path', 'event')`),
+  ],
+);
+export const funnels = sqliteTable(
+  'funnels',
+  {
+    id: text('id').primaryKey().notNull(),
+    site_id: text('site_id')
+      .notNull()
+      .references(() => sites.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    steps: text('steps').notNull(),
+    created_at: integer('created_at').notNull(),
+  },
+  (table) => [index('funnels_site').on(table.site_id)],
 );

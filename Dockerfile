@@ -1,4 +1,4 @@
-FROM oven/bun:1.4.4 AS dependencies
+FROM oven/bun:1.4.5 AS dependencies
 WORKDIR /app
 COPY package.json bun.lock .npmrc bunfig.toml ./
 RUN bun install --frozen-lockfile --ignore-scripts --network-concurrency 4
@@ -13,7 +13,7 @@ COPY scripts/build.ts scripts/build-tracker.ts ./scripts/
 COPY vite.config.ts tsconfig.json ./
 RUN bun run --bun build
 
-FROM oven/bun:1.4.4 AS production-dependencies
+FROM oven/bun:1.4.5 AS production-dependencies
 WORKDIR /app
 # Depend on the completed build so BuildKit does not install production dependencies in parallel.
 COPY --from=build /app/package.json /app/bun.lock /app/.npmrc /app/bunfig.toml ./
@@ -25,7 +25,7 @@ COPY scripts/update-geoip.ts ./scripts/
 ARG GEOIP_RELEASE=latest
 RUN bun --smol scripts/update-geoip.ts
 
-FROM oven/bun:1.4.4 AS runtime
+FROM oven/bun:1.4.5 AS runtime
 WORKDIR /app
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3000 DATABASE_PATH=/data/oddhouse.sqlite
 RUN mkdir -p /data /backups && chown bun:bun /data /backups

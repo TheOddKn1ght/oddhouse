@@ -2,7 +2,7 @@
 
 Self-hosted web analytics with SvelteKit, Bun, and SQLite. Tracks pageviews, referrers, countries, browsers, devices, operating systems, languages, and custom events without tracking cookies or storing raw IPs.
 
-Requires Bun 1.4.4+.
+Requires Bun 1.4.5+.
 
 ```bash
 bun install
@@ -41,7 +41,7 @@ available memory still depends on the OS, Docker, and other running services.
 For faster builds on larger hosts, set `ROLLDOWN_WORKER_THREADS` and
 `RAYON_NUM_THREADS` to higher values. Set `BUN_JSC_useJIT=1` to re-enable
 JIT compilation during builds. This Bun engine setting is verified with the
-pinned Bun 1.4.4 runtime and should be rechecked on upgrades.
+pinned Bun 1.4.5 runtime and should be rechecked on upgrades.
 
 Country data: [DB-IP Country Lite](https://db-ip.com/db/download/ip-to-country-lite), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
